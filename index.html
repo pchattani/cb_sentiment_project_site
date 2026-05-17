@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The CB Sentiment Project</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<!-- ── Disclaimer banner ────────────────────────────────────────────────────── -->
+<div id="disclaimer-banner" style="background:#161b22;border-bottom:1px solid #30363d;padding:8px 0">
+  <div class="container-xl" style="font-size:0.7rem;color:#8b949e;line-height:1.6">
+    <strong style="color:#e6edf3;font-size:0.72rem;letter-spacing:0.04em">DISCLAIMER</strong> &nbsp;
+    The views expressed on this website are solely those of the author in a personal capacity and do not represent any current or former employer or affiliated institution. Nothing here constitutes investment advice or a solicitation to buy, sell, or hold any financial instrument. All data and indicators are experimental outputs of an automated NLP pipeline and may contain errors. This website is for informational and educational purposes only — use entirely at your own risk. Past signal performance is not indicative of future results.
+    &nbsp;<a href="#site-footer" style="color:#58a6ff;text-decoration:none">Full disclaimer ↓</a>
+  </div>
+</div>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<div id="site-header">
+  <div class="container-xl">
+    <div class="d-flex justify-content-between align-items-center py-3">
+      <div>
+        <h1 class="site-title">The CB Sentiment Project</h1>
+        <p class="site-sub">LLM-scored hawkish/dovish stance for 23 central banks &middot; sentence-level &minus;10→+10 scale &middot; 3-model ensemble (Claude · Gemini · DeepSeek)</p>
+        <p class="site-sub2">DM: USD CAD | EUR GBP SEK NOK CHF | AUD NZD &nbsp;&middot;&nbsp; EM: CZK HUF PLN | INR KRW TWD THB | MXN BRL CLP COP | TRY ILS ZAR</p>
+      </div>
+      <div class="text-end">
+        <span id="last-updated" class="badge-updated"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Tab navigation ─────────────────────────────────────────────────────── -->
+<div id="tab-bar">
+  <div class="container-xl">
+    <ul class="nav nav-tabs" id="mainTabs">
+      <li class="nav-item"><a class="nav-link active" href="#" data-tab="dashboard">Dashboard</a></li>
+      <li class="nav-item"><a class="nav-link" href="#" data-tab="methodology">Methodology</a></li>
+      <li class="nav-item"><a class="nav-link" href="#" data-tab="stats">Statistical Summary &amp; Observations</a></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ── Loading overlay ────────────────────────────────────────────────────── -->
+<div id="loading-overlay">
+  <div class="spinner-border text-primary" role="status"></div>
+  <div class="mt-2 text-muted">Loading data…</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 1: DASHBOARD                                                           -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div id="tab-dashboard" class="tab-content-pane container-xl active">
+
+  <!-- Project description banner -->
+  <div style="background:linear-gradient(135deg,#1a2332 0%,#1e2a3a 100%);border:1px solid #30363d;border-left:4px solid #58a6ff;border-radius:6px;padding:20px 24px;margin-top:16px;margin-bottom:4px">
+    <p style="font-size:1rem;color:#e6edf3;line-height:1.75;margin:0 0 10px 0">
+      <strong style="color:#58a6ff;font-size:1.05rem">The CB Sentiment Project</strong> scores the hawkish/dovish stance of 23 central banks using a
+      3-model LLM ensemble (Claude · Gemini · DeepSeek). Each official monetary policy statement is
+      broken into sentences and scored on a continuous <strong style="color:#e6edf3">&minus;10 (hawkish) to +10 (dovish)</strong>
+      scale; the document score is the sentence-level mean. The 3-model ensemble reduces single-model noise.
+    </p>
+    <p style="font-size:1rem;color:#e6edf3;line-height:1.75;margin:0 0 10px 0">
+      The <strong style="color:#a78bfa">momentum indicator</strong> captures both the speed and direction of change in each
+      CB's stance — not where sentiment is, but how quickly and in which direction it is moving.
+      Computed on normalized meeting-to-meeting changes over several overlapping lookback windows,
+      capped on a <strong style="color:#e6edf3">&minus;2 (hawkish) to +2 (dovish)</strong> scale,
+      with an empirical <strong style="color:#e6edf3">half-life of&nbsp;&approx;&nbsp;6 months</strong>.
+      All group and aggregate charts show data from <strong style="color:#e6edf3">2005 onwards</strong>.
+    </p>
+    <p style="font-size:0.88rem;color:#8b949e;line-height:1.6;margin:0">
+      Questions or feedback? Reach out via
+      <a href="https://www.linkedin.com/in/prem-chattani-4773556b/" target="_blank" rel="noopener noreferrer" style="color:#58a6ff;text-decoration:none">LinkedIn (Prem Chattani)</a>.
+    </p>
+  </div>
+
+  <!-- Coverage table -->
+  <div id="coverage-wrap" class="card-dark mt-3"></div>
+
+  <!-- ── Sentiment and Momentum Snapshot ──────────────────────────────────── -->
+  <div class="section-header" style="border-top-color:#a78bfa">Sentiment and Momentum Snapshot</div>
+  <div class="d-flex align-items-center gap-3 flex-wrap mb-2">
+    <p class="chart-label mb-0">Sentiment score (y) vs momentum indicator (x) &middot; negative&nbsp;=&nbsp;hawkish &middot; positive&nbsp;=&nbsp;dovish</p>
+    <div class="d-flex align-items-center gap-2">
+      <span class="filter-label" style="color:var(--text3)">DATE</span>
+      <input type="month" id="scatter-date" class="cb-select" style="min-width:130px">
+      <span class="filter-hint">pick month for historical view</span>
+    </div>
+  </div>
+  <div id="scatter-chart" class="plotly-chart"></div>
+
+  <!-- Cross-CB distributions -->
+  <div class="d-flex align-items-center gap-3 flex-wrap mt-4 mb-2">
+    <p class="chart-label mb-0">Cross-CB Distributions — current value marked ◆</p>
+    <div id="agg-dist-lookback-radio" class="radio-group">
+      <label class="radio-btn active" data-value="2"><input type="radio" name="aggdist" value="2" checked> 2Y</label>
+      <label class="radio-btn" data-value="5"><input type="radio" name="aggdist" value="5"> 5Y</label>
+      <label class="radio-btn" data-value="10"><input type="radio" name="aggdist" value="10"> 10Y</label>
+      <label class="radio-btn" data-value="0"><input type="radio" name="aggdist" value="0"> All</label>
+    </div>
+  </div>
+  <div class="row g-3">
+    <div class="col-lg-6 col-12">
+      <p class="chart-label" style="font-size:0.78rem;color:var(--text3)">Sentiment Score</p>
+      <div id="sent-dist-chart" class="plotly-chart" style="min-height:280px"></div>
+    </div>
+    <div class="col-lg-6 col-12">
+      <p class="chart-label" style="font-size:0.78rem;color:var(--text3)">Momentum Indicator</p>
+      <div id="mom-dist-chart" class="plotly-chart" style="min-height:280px"></div>
+    </div>
+  </div>
+
+  <!-- ── Aggregate Scores ──────────────────────────────────────────────────── -->
+  <div class="section-header" style="border-top-color:#58a6ff">Aggregate Scores — Equal-Weight Indices</div>
+
+  <div class="filter-bar mb-3" style="border-left-color:var(--green)">
+    <div class="filter-label" style="color:var(--green)">VIEW — controls all charts in this section and Group Views below</div>
+    <div class="filter-hint">Toggle between sentiment level and momentum indicator</div>
+    <div id="agg-mode-radio" class="radio-group mt-2">
+      <label class="radio-btn active" data-value="sentiment"><input type="radio" name="aggmode" value="sentiment" checked> Sentiment</label>
+      <label class="radio-btn" data-value="momentum"><input type="radio" name="aggmode" value="momentum"> Momentum</label>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-6 col-12">
+      <p id="emdm-label" class="chart-label">DM vs EM — 3-month rolling avg</p>
+      <div id="em-dm-chart" class="plotly-chart"></div>
+    </div>
+    <div class="col-lg-6 col-12">
+      <p id="regions-label" class="chart-label">By Region — 3-month rolling avg</p>
+      <div id="regions-chart" class="plotly-chart"></div>
+    </div>
+  </div>
+
+  <!-- ── Group Views ───────────────────────────────────────────────────────── -->
+  <div class="section-header" style="border-top-color:#58a6ff">Group Views</div>
+
+  <!-- Partition filter — Sentiment/Momentum controlled by toggle above -->
+  <div class="filter-bar mb-3">
+    <div class="filter-label">PARTITION</div>
+    <div class="filter-hint">Filters all charts in this section · Sentiment/Momentum controlled by the toggle above</div>
+    <div id="partition-radio" class="radio-group mt-2">
+      <label class="radio-btn active" data-value="dm"><input type="radio" name="partition" value="dm" checked> DM</label>
+      <label class="radio-btn" data-value="em"><input type="radio" name="partition" value="em"> EM</label>
+      <label class="radio-btn" data-value="NA"><input type="radio" name="partition" value="NA"> NA</label>
+      <label class="radio-btn" data-value="Europe"><input type="radio" name="partition" value="Europe"> Europe</label>
+      <label class="radio-btn" data-value="Asia-Pac"><input type="radio" name="partition" value="Asia-Pac"> Asia-Pac</label>
+      <label class="radio-btn" data-value="LATAM"><input type="radio" name="partition" value="LATAM"> LATAM</label>
+      <label class="radio-btn" data-value="EMEA"><input type="radio" name="partition" value="EMEA"> EMEA</label>
+      <label class="radio-btn" data-value="all"><input type="radio" name="partition" value="all"> All</label>
+    </div>
+  </div>
+
+  <p id="overview-label" class="chart-label">Sentiment — 3-Month Rolling Average</p>
+  <div id="overview-chart" class="plotly-chart"></div>
+
+  <hr class="divider">
+
+  <p id="heatmap-label" class="chart-label">Sentiment Heatmap — 3-Month Rolling Average</p>
+  <div id="heatmap-chart" class="plotly-chart"></div>
+  <hr class="divider">
+
+  <p id="corr-label" class="chart-label">Pairwise Sentiment Correlation Matrix — 3-Month Rolling Average</p>
+  <div id="corr-radio" class="radio-group mb-2">
+    <label class="radio-btn" data-value="2"><input type="radio" name="corr" value="2"> 2Y</label>
+    <label class="radio-btn active" data-value="5"><input type="radio" name="corr" value="5" checked> 5Y</label>
+    <label class="radio-btn" data-value="10"><input type="radio" name="corr" value="10"> 10Y</label>
+    <label class="radio-btn" data-value="0"><input type="radio" name="corr" value="0"> All</label>
+  </div>
+  <div id="corr-chart" class="plotly-chart"></div>
+
+  <!-- ── Individual CB Deep Dive ───────────────────────────────────────────── -->
+  <div class="section-header" style="border-top-color:#f97316">Individual CB Deep Dive</div>
+  <div class="mb-3">
+    <select id="cb-detail-select" class="cb-select"></select>
+  </div>
+  <div id="detail-chart" class="plotly-chart"></div>
+  <div class="row g-3 mt-1">
+    <div class="col-lg-5 col-12">
+      <div class="d-flex align-items-center mb-1">
+        <p class="chart-label me-3 mb-0">Distribution</p>
+        <div id="dist-radio" class="radio-group">
+          <label class="radio-btn active" data-value="tone"><input type="radio" name="dist" value="tone" checked> Sentiment</label>
+          <label class="radio-btn" data-value="pos"><input type="radio" name="dist" value="pos"> Momentum</label>
+        </div>
+      </div>
+      <div id="dist-chart" class="plotly-chart"></div>
+    </div>
+    <div class="col-lg-7 col-12">
+      <p class="chart-label mb-1">Momentum Indicator — Hawkish / Dovish</p>
+      <div id="pos-chart" class="plotly-chart"></div>
+    </div>
+  </div>
+  <!-- ── Model Comparison ─────────────────────────────────────────────────── -->
+  <div class="section-header" style="border-top-color:#f97316">Model Score Comparison — Claude · Gemini · DeepSeek + Ensemble</div>
+  <div class="mb-3">
+    <select id="model-cmp-select" class="cb-select"></select>
+  </div>
+  <div id="model-cmp-chart" class="plotly-chart"></div>
+
+  <!-- ── CB Status & Calendar ─────────────────────────────────────────────── -->
+  <div class="section-header" style="border-top-color:#3fb950">CB Status &amp; Next Scheduled Meeting</div>
+  <div id="calendar-wrap" class="card-dark"></div>
+
+  <div style="height:60px"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 2: METHODOLOGY                                                          -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div id="tab-methodology" class="tab-content-pane container-xl">
+  <div style="background:linear-gradient(135deg,#1a2332 0%,#1e2a3a 100%);border:1px solid #30363d;border-left:4px solid #58a6ff;border-radius:6px;padding:16px 24px;margin-top:20px;margin-bottom:4px">
+    <p style="font-size:1.05rem;font-weight:700;color:#58a6ff;margin:0 0 4px">Methodology</p>
+    <p style="font-size:0.85rem;color:#8b949e;margin:0">Pipeline design, scoring scale, model setup, ensemble construction, and how to read the dashboard.</p>
+  </div>
+
+  <div class="prose-dark mt-4">
+
+    <h3>Overview</h3>
+    <p>The CB Sentiment Project measures the hawkish or dovish stance of 23 central banks by scoring official monetary policy statements with a 3-model LLM ensemble. Each statement is split into sentences; each sentence is scored on a continuous <strong>&minus;10 (strongly hawkish)</strong> to <strong>+10 (strongly dovish)</strong> scale; the document score is the sentence-level ensemble mean. Sentence-level scoring is a deliberate design choice: a single policy statement routinely mixes inflation concern, growth risk, and forward guidance in different proportions. Document-level scoring collapses this structure; sentence-level scoring preserves it.</p>
+
+    <h3>Data Coverage</h3>
+    <p>More than 4,500 statements across 23 central banks are scored. Banks were selected on three criteria: <strong>market relevance</strong> (the currency matters for global FX and fixed-income markets), <strong>policy independence</strong> (the bank sets rates or financial conditions autonomously, not via a peg or mandate from another authority), and <strong>communication accessibility</strong>. Together the 23 banks cover currencies representing over 90% of global average daily FX turnover (BIS 2022 Triennial Survey).</p>
+    <p>The most notable exclusion is the Bank of Japan (JPY, ~17% of FX turnover). The transition from yield curve control to conventional rate targeting in 2024 creates a regime break that makes pre- and post-transition scores incomparable on a single scale. Other exclusions: currency boards (HKMA), exchange-rate targeters (MAS), and banks with no accessible English-language statement archive (PBOC).</p>
+
+
+    <p class="chart-label" style="margin-top:16px">CB Universe — ordered by BIS FX volume</p>
+    <div id="method-coverage-chart" class="plotly-chart"></div>
+
+    <p style="font-size:0.78rem;color:var(--text3);margin-top:6px">Orange dashed line = 2005 dashboard start. By 2005, over half of our CB universe had begun their modern communication regime — providing sufficient cross-CB coverage for meaningful aggregate and group-level analysis. Pre-2005 data is available for CBs with earlier archives and is included in the "Full history" view of the Descriptive Statistics.</p>
+
+    <div id="method-coverage-table-wrap" style="margin-top:16px; overflow-x:auto"></div>
+
+<p style="margin-top:12px; font-size:0.78rem; color:var(--text3)">
+      <strong style="color:var(--text2)">Excluded:</strong>
+      PBOC/CNY (~7%) — state-directed communication, no accessible English MPC statements &nbsp;|&nbsp;
+      HKMA/HKD (~3%) — currency board, USD peg &nbsp;|&nbsp;
+      MAS/SGD (~2%) — exchange-rate targeting (NEER band), not rate decisions    </p>
+
+    <h3>Scoring Scale</h3>
+    <p>The scale runs from &minus;10 (strongly hawkish) to +10 (strongly dovish), with 0 representing a fully neutral stance. In practice, empirical scores for most central banks cluster in a narrower range reflecting the measured communication style of monetary policymakers, but the full scale is available to represent extreme episodes.</p>
+    <div class="scale-bar">
+      <span class="scale-neg">−10 Strongly hawkish</span>
+      <span class="scale-zero">0 Neutral</span>
+      <span class="scale-pos">+10 Strongly dovish</span>
+    </div>
+
+    <h4>Why &minus;10/+10? Empirical Validation</h4>
+    <p>The scale choice was tested empirically using 307 representative sentences scored by all three models under three alternative scales: &minus;2/+2 (2pt), &minus;10/+10 (current), and &minus;100/+100.</p>
+    <p><strong>2pt scale: two failure modes.</strong> At neutral (score = 0), roughly 43% of sentences are genuinely neutral, 32% are mildly hawkish, and 23% mildly dovish — the label is uninformative. At the extremes (&minus;2, +2), the bucket fans across &minus;5 to &minus;10 and +5 to +10 on the finer scale; a label of "strongly hawkish" collapses a cautious &minus;5 and an emergency &minus;10 into the same bin.</p>
+    <p><strong>100pt scale: false precision.</strong> Models use fewer than 30 of the 201 theoretical levels in practice (~14% utilisation), clustering at multiples of 5 or 10. No incremental information over the 10pt scale; the extra granularity is noise.</p>
+    <p><strong>10pt scale: correct.</strong> Models use 95% of the 21 available levels; cross-model agreement is highest here (median r = 0.915 across pairs); the scale captures both directional ambiguity and intensity without false precision.</p>
+
+    <div id="method-scale-table" class="plotly-chart" style="min-height:0"></div>
+
+    <p class="chart-label">Scale Utilisation — Levels Actually Used</p>
+    <div id="method-util-chart" class="plotly-chart"></div>
+
+    <p class="chart-label mt-3">Resolution Loss — How Each 2pt Bucket Maps onto the 10pt Scale (per model, raw scores)</p>
+    <div id="method-resolution-chart" class="plotly-chart"></div>
+
+    <h3>Models</h3>
+
+    <h4>Model Selection</h4>
+    <p>Selecting models for ensemble scoring involved two filtering stages. The initial pool of frontier LLMs was narrowed based on API maturity, cost at scale, and suitability for structured JSON output across 23 central banks in multiple languages. This produced a shortlist of four models that were then run on a shared validation sample to measure cross-model agreement empirically.</p>
+
+    <style>
+      .rating { font-size: 0.85rem; letter-spacing: 1px; }
+      .r3 { color: #4ade80; }
+      .r2 { color: #fbbf24; }
+      .r1 { color: #6e7681; }
+      .r0 { color: #3d4451; }
+      .sel-yes { color: #4ade80; font-weight: 700; text-align: center; }
+      .sel-no  { color: #f97316; font-weight: 700; text-align: center; }
+    </style>
+    <table class="method-table" style="font-size:0.82rem">
+      <thead>
+        <tr>
+          <th>Model</th><th>Provider</th>
+          <th title="Stable production API available at project start">API availability</th>
+          <th title="Cost efficiency at scale (sentence-level scoring across 4,500+ statements)">Cost at scale</th>
+          <th title="Quality on non-English central bank statements (~30% of dataset)">Multilingual</th>
+          <th title="Consistency of parseable JSON with score + justification on every call">JSON reliability</th>
+          <th title="Instruction adherence and accuracy on monetary policy tone classification">Task fit</th>
+          <th>Shortlisted</th><th>Selected</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span style="color:#c084fc">Claude Sonnet</span></td><td>Anthropic</td>
+          <td><span class="rating r3">●●●</span></td>
+          <td><span class="rating r2">●●○</span></td>
+          <td><span class="rating r2">●●○</span></td>
+          <td><span class="rating r3">●●●</span></td>
+          <td><span class="rating r3">●●●</span></td>
+          <td class="sel-yes">✓</td><td class="sel-yes">✓</td>
+        </tr>
+        <tr>
+          <td><span style="color:#4ade80">Gemini Flash</span></td><td>Google DeepMind</td>
+          <td><span class="rating r3">●●●</span></td>
+          <td><span class="rating r3">●●●</span></td>
+          <td><span class="rating r3">●●●</span></td>
+          <td><span class="rating r3">●●●</span></td>
+          <td><span class="rating r2">●●○</span></td>
+          <td class="sel-yes">✓</td><td class="sel-yes">✓</td>
+        </tr>
+        <tr>
+          <td><span style="color:#60a5fa">DeepSeek V3</span></td><td>DeepSeek AI</td>
+          <td><span class="rating r3">●●●</span></td>
+          <td><span class="rating r3">●●●</span></td>
+          <td><span class="rating r2">●●○</span></td>
+          <td><span class="rating r2">●●○</span></td>
+          <td><span class="rating r3">●●●</span></td>
+          <td class="sel-yes">✓</td><td class="sel-yes">✓</td>
+        </tr>
+        <tr style="opacity:0.75">
+          <td><span style="color:#f97316">GPT-4o</span></td><td>OpenAI</td>
+          <td><span class="rating r3">●●●</span></td>
+          <td><span class="rating r1">●○○</span></td>
+          <td><span class="rating r2">●●○</span></td>
+          <td><span class="rating r3">●●●</span></td>
+          <td><span class="rating r1">●○○</span></td>
+          <td class="sel-yes">✓</td><td class="sel-no">✗</td>
+        </tr>
+        <tr style="opacity:0.55">
+          <td>Grok</td><td>xAI</td>
+          <td><span class="rating r1">●○○</span></td>
+          <td><span class="rating r2">●●○</span></td>
+          <td><span class="rating r2">●●○</span></td>
+          <td><span class="rating r1">●○○</span></td>
+          <td><span class="rating r1">●○○</span></td>
+          <td class="sel-no">✗</td><td class="sel-no">✗</td>
+        </tr>
+        <tr style="opacity:0.55">
+          <td>Qwen 2.5</td><td>Alibaba</td>
+          <td><span class="rating r2">●●○</span></td>
+          <td><span class="rating r3">●●●</span></td>
+          <td><span class="rating r3">●●●</span></td>
+          <td><span class="rating r2">●●○</span></td>
+          <td><span class="rating r1">●○○</span></td>
+          <td class="sel-no">✗</td><td class="sel-no">✗</td>
+        </tr>
+        <tr style="opacity:0.55">
+          <td>Llama 3.x</td><td>Meta</td>
+          <td><span class="rating r1">●○○</span></td>
+          <td><span class="rating r2">●●○</span></td>
+          <td><span class="rating r2">●●○</span></td>
+          <td><span class="rating r2">●●○</span></td>
+          <td><span class="rating r1">●○○</span></td>
+          <td class="sel-no">✗</td><td class="sel-no">✗</td>
+        </tr>
+        <tr style="opacity:0.55">
+          <td>Mistral</td><td>Mistral AI</td>
+          <td><span class="rating r2">●●○</span></td>
+          <td><span class="rating r3">●●●</span></td>
+          <td><span class="rating r2">●●○</span></td>
+          <td><span class="rating r1">●○○</span></td>
+          <td><span class="rating r1">●○○</span></td>
+          <td class="sel-no">✗</td><td class="sel-no">✗</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="font-size:0.78rem;color:var(--text3);margin-top:4px"><span class="rating r3">●●●</span> = strong &nbsp; <span class="rating r2">●●○</span> = adequate &nbsp; <span class="rating r1">●○○</span> = weak / not suitable. GPT-4o task fit rated low due to empirical validation results (see below).</p>
+
+    <h4>Why GPT-4o Was Dropped</h4>
+    <p>All four shortlisted models were run on a stratified sample of 249 central bank statements spanning multiple CBs, languages, and policy regimes. Each model received the same prompt and scored each statement independently. Two statistics determined the outcome:</p>
+    <ul>
+      <li><strong>Correlation (Pearson r).</strong> Pairs that exclude GPT-4o achieve r&nbsp;=&nbsp;0.91–0.95. Every pair involving GPT-4o falls to r&nbsp;=&nbsp;0.73–0.75 — a consistent 0.17–0.20 point drop regardless of which other model it is paired with. This is not noise: it is a structural signal that GPT-4o is reading something different in the statements.</li>
+      <li><strong>Systematic bias.</strong> GPT-4o scores approximately +1.0 units higher (more dovish) than the consensus on every pair. The non-GPT pairs have bias indistinguishable from zero (0.02–0.10). Including a systematically biased model in an equal-weight average would shift every ensemble score by ~0.3 units — a meaningful distortion across 4,500+ statements.</li>
+    </ul>
+    <div class="row g-3 mt-1">
+      <div class="col-lg-6 col-12">
+        <div id="method-model-r-chart" class="plotly-chart"></div>
+        <p class="chart-label">Pairwise correlation — GPT-4o pairs (orange) are consistently 0.17–0.20 points below the non-GPT cluster (green)</p>
+      </div>
+      <div class="col-lg-6 col-12">
+        <div id="method-model-bias-chart" class="plotly-chart"></div>
+        <p class="chart-label">Systematic bias — GPT-4o scores ~+1.0 units more dovish than every other model; non-GPT pairs are near zero</p>
+      </div>
+    </div>
+
+    <h4>Final Model Set</h4>
+    <p>Three frontier LLMs score each sentence independently:</p>
+    <table class="method-table">
+      <thead><tr><th>Model</th><th>Provider</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td><span style="color:#c084fc">Claude</span></td><td>Anthropic</td><td>Long-context reasoning; strong instruction-following on nuanced text</td></tr>
+        <tr><td><span style="color:#4ade80">Gemini</span></td><td>Google DeepMind</td><td>Broad multilingual training; independent read on financial language</td></tr>
+        <tr><td><span style="color:#60a5fa">DeepSeek</span></td><td>DeepSeek AI</td><td>Strong chain-of-thought reasoning on structured policy text</td></tr>
+      </tbody>
+    </table>
+    <p>Each model receives the same structured prompt asking it to assess whether a sentence signals hawkish or dovish monetary policy intent. The prompt requires a numeric score <em>and</em> a brief textual justification — forcing the model to reason through the sentence before committing to a number, which measurably reduces score randomness compared to prompts that ask for numbers alone. All 23 central banks use an identical prompt framing, ensuring cross-CB comparability regardless of communication style or language register.</p>
+
+    <h3>Ensemble Construction</h3>
+    <p>Aggregation is bottom-up, operating at the sentence level. Each model scores each sentence independently with no cross-model communication. Sentences from different models are matched by normalized text — identical surface strings across models are treated as the same sentence. For each matched sentence, the ensemble score is the mean of the non-null model scores for that sentence. The document score is then the mean of all sentence ensemble scores.</p>
+    <p>This structure preserves the information content that flat document-level averaging discards. A statement mixing hawkish inflation language with dovish growth hedges produces a document score that reflects the composition of those signals sentence-by-sentence, not just their net sum. Cross-model agreement at the sentence level also surfaces where the models disagree — a higher-entropy signal that individual scoring conceals.</p>
+    <p>When a model fails to score a sentence (rare), the sentence ensemble uses the remaining models. Statements where all models fail or return insufficient output are excluded.</p>
+
+    <h4>Cross-Model Agreement Validates the Scoring</h4>
+    <p>All statements scored by all three models are plotted below — each point is a full central bank statement, scored independently by each model with no shared context. High pairwise correlation (r &gt; 0.9) confirms the sentiment signal is consistent across architectures and training regimes — it is not an artifact of any single model's idiosyncrasies:</p>
+    <div id="agree-all-chart" class="plotly-chart mt-1"></div>
+    <p>Averaging three independent model scores also suppresses idiosyncratic single-meeting noise: ensemble within-CB volatility is lower than any individual model's, without introducing systematic bias.</p>
+
+    <h3>Text Processing</h3>
+    <p>Statements are scraped directly from official central bank websites. Pre-processing steps:</p>
+    <ol>
+      <li>Remove boilerplate (headers, footers, legal disclaimers, contact info)</li>
+      <li>Split into sentences using standard tokenization</li>
+      <li>Score each sentence independently; the model prompt instructs each model to return null for non-substantive content (dates, citations, procedural headers, legal boilerplate) rather than forcing a score</li>
+    </ol>
+    <p>PDF documents (older statements) are extracted with column-aware word ordering to handle two-column press release layouts.</p>
+
+    <h3>Aggregation &amp; Smoothing</h3>
+    <p>Raw document scores are resampled to monthly end-of-month frequency. Group and aggregate index charts apply a 3-month rolling average to reduce meeting-cycle noise without losing cycle-turning-point responsiveness. Individual CB charts display raw meeting scores as dots, with a 3-month rolling average overlaid as a line.</p>
+
+    <h3>Momentum Indicator</h3>
+    <p>The momentum indicator measures the speed and direction of change in each CB's stance — not where sentiment is, but how quickly and in which direction it is moving. It is computed on normalized, meeting-to-meeting score changes over several overlapping lookback windows, then capped on a &minus;2 (hawkish) to +2 (dovish) scale. The multi-window construction with per-CB normalization makes the indicator scale-invariant: a momentum reading of +1.0 means the same thing for a historically volatile CB as for a historically stable one. The half-life of the indicator is approximately 6 months.</p>
+
+    <h3>How to Use the Dashboard</h3>
+    <p><strong>Coverage table:</strong> Descriptive overview of each CB — currency ticker, BIS FX market share, and geographic region. Full coverage detail (statement counts, archive depth) is in the Data Coverage section above.</p>
+    <p><strong>Sentiment vs Momentum Snapshot:</strong> Current sentiment score (y) vs momentum indicator (x). CBs in the bottom-left are hawkish with accelerating hawkish momentum; top-right are dovish with accelerating dovish momentum.</p>
+    <p><strong>Group Views — Partition filter:</strong> Use DM/EM or regional cuts to compare policy synchronization within a peer group. Toggle between Sentiment and Momentum to compare the level signal with the directional signal.</p>
+    <p><strong>Correlation matrix:</strong> Pairwise sentiment (or momentum) correlation — which central banks move in lockstep vs. diverge. Use the period selector (2Y, 5Y, 10Y, All) to see how correlation structures shift over time.</p>
+    <p><strong>Individual CB Deep Dive:</strong> Dot scatter of raw statement scores plus 3-month rolling average. Distribution toggle shows the historical spread of sentiment or momentum. The momentum indicator shows the directional positioning signal.</p>
+    <p><strong>Model Comparison:</strong> Verify that individual model scores align with the ensemble.</p>
+
+  </div>
+
+  <div style="height:60px"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 3: NOTES & FINDINGS                                                     -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div id="tab-stats" class="tab-content-pane container-xl">
+
+  <!-- ── Descriptive Statistics ───────────────────────────────────────────── -->
+  <div style="background:linear-gradient(135deg,#1a2332 0%,#1e2a3a 100%);border:1px solid #30363d;border-left:4px solid #38bdf8;border-radius:6px;padding:16px 24px;margin-top:20px;margin-bottom:4px">
+    <p style="font-size:1.05rem;font-weight:700;color:#38bdf8;margin:0 0 4px">Descriptive Statistics</p>
+    <p style="font-size:0.85rem;color:#8b949e;margin:0">Summary statistics, distributions, and volatility profiles. Toggle Signal and Period to explore tone vs momentum and full history vs 2005 onwards.</p>
+  </div>
+
+  <!-- ── Signal + Period toggles ──────────────────────────────────────────── -->
+  <div class="d-flex flex-wrap align-items-center gap-4 mt-2 mb-1">
+    <div class="d-flex align-items-center gap-2">
+      <span style="font-size:0.78rem;font-weight:600;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase">Signal:</span>
+      <div class="radio-group" id="stats-mode-radio">
+        <label class="radio-btn active" data-value="tone"><input type="radio" name="stats-mode" value="tone" checked> Tone</label>
+        <label class="radio-btn" data-value="momentum"><input type="radio" name="stats-mode" value="momentum"> Momentum</label>
+      </div>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <span style="font-size:0.78rem;font-weight:600;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase">Period:</span>
+      <div class="radio-group" id="stats-period-radio">
+        <label class="radio-btn active" data-value="2005"><input type="radio" name="stats-period" value="2005" checked> 2005 onwards</label>
+        <label class="radio-btn" data-value="all"><input type="radio" name="stats-period" value="all"> Full history</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary Table -->
+  <div class="section-header" style="border-top-color:#58a6ff">Summary Statistics by CB</div>
+  <div id="stats-sum-tone-2005"  data-signal="tone" data-period="2005" style="overflow-x:auto"></div>
+  <div id="stats-sum-tone-all"   data-signal="tone" data-period="all"  style="overflow-x:auto" class="d-none"></div>
+  <div id="stats-sum-mom-2005"   data-signal="mom"  data-period="2005" style="overflow-x:auto" class="d-none"></div>
+  <div id="stats-sum-mom-all"    data-signal="mom"  data-period="all"  style="overflow-x:auto" class="d-none"></div>
+
+  <!-- A: Score Distribution -->
+  <div class="section-header" style="border-top-color:#4ade80">Score Distribution by CB</div>
+  <div class="prose-dark tone-mode">
+    <p>Sentiment score distributions per CB, sorted by median.</p>
+  </div>
+  <div class="prose-dark mom-mode d-none">
+    <p>Momentum indicator distributions per CB, sorted by median.</p>
+  </div>
+  <div id="stats-score-dist-2005" class="plotly-chart" data-signal="tone" data-period="2005"></div>
+  <div id="stats-score-dist-all"  class="plotly-chart d-none" data-signal="tone" data-period="all"></div>
+  <div id="stats-mom-dist-2005"   class="plotly-chart d-none" data-signal="mom"  data-period="2005"></div>
+  <div id="stats-mom-dist-all"    class="plotly-chart d-none" data-signal="mom"  data-period="all"></div>
+
+  <!-- B: Volatility -->
+  <div class="section-header" style="border-top-color:#f97316">Meeting-to-Meeting Volatility</div>
+  <div class="prose-dark tone-mode">
+    <p>Standard deviation of meeting-to-meeting sentiment change, sorted high-to-low.</p>
+  </div>
+  <div class="prose-dark mom-mode d-none">
+    <p>Standard deviation of month-to-month momentum changes.</p>
+  </div>
+  <div id="stats-vol-2005"      class="plotly-chart" data-signal="tone" data-period="2005"></div>
+  <div id="stats-vol-all"       class="plotly-chart d-none" data-signal="tone" data-period="all"></div>
+  <div id="stats-mom-vol-2005"  class="plotly-chart d-none" data-signal="mom"  data-period="2005"></div>
+  <div id="stats-mom-vol-all"   class="plotly-chart d-none" data-signal="mom"  data-period="all"></div>
+
+  <!-- C: Stress Timeline -->
+  <div class="section-header" style="border-top-color:#a855f7">DM &amp; EM Index Through Major Stress Episodes</div>
+  <div class="prose-dark tone-mode">
+    <p>Equal-weight DM and EM sentiment indices from 2000, with shaded bands for five macro stress episodes. GFC and COVID appear as dovish valleys; the 2021–2023 inflation cycle is the sharpest hawkish episode on record. DM turned dovish earlier in both easing cycles; EM maintained hawkish language slightly longer into the inflation cycle.</p>
+  </div>
+  <div class="prose-dark mom-mode d-none">
+    <p>DM and EM average momentum through the same episodes. Momentum leads the level: in COVID, DM momentum swung dovish within a single month ahead of the tone trough. In the 2021–2023 cycle, momentum turned hawkish in early 2021 — several months before absolute tone peaked.</p>
+  </div>
+  <div id="stats-stress-chart"     class="plotly-chart tone-mode"></div>
+  <div id="stats-mom-stress-chart" class="plotly-chart mom-mode d-none"></div>
+
+  <!-- D: Stress Heatmap -->
+  <div class="section-header" style="border-top-color:#ef4444">Crisis Episode Heatmap — Average Score During Episode</div>
+  <div class="prose-dark tone-mode">
+    <p>Average sentiment score per CB per stress episode. Green = dovish; red = hawkish; grey = insufficient data. COVID (2020) is nearly uniformly green; the inflation cycle (2021–2023) is nearly uniformly red.</p>
+  </div>
+  <div class="prose-dark mom-mode d-none">
+    <p>Average momentum per CB per episode. The directional signal is cleaner here than in the tone view: COVID is almost uniformly green and the inflation cycle almost uniformly red across both DM and EM, regardless of where absolute scores started.</p>
+  </div>
+  <div id="stats-stress-heatmap-chart"     class="plotly-chart tone-mode"></div>
+  <div id="stats-mom-stress-heatmap-chart" class="plotly-chart mom-mode d-none"></div>
+
+  <!-- ── Observations ─────────────────────────────────────────────────────── -->
+  <div style="background:linear-gradient(135deg,#1e2a1e 0%,#1a2a1a 100%);border:1px solid #30363d;border-left:4px solid #3fb950;border-radius:6px;padding:16px 24px;margin-top:36px;margin-bottom:4px">
+    <p style="font-size:1.05rem;font-weight:700;color:#3fb950;margin:0 0 4px">Observations</p>
+    <p style="font-size:0.85rem;color:#8b949e;margin:0">Key empirical findings — factor structure and regional behaviour.</p>
+  </div>
+
+  <div class="section-header" style="border-top-color:#58a6ff">1. PC1 Captures the Global Policy Cycle</div>
+  <div class="prose-dark">
+    <p>Principal component analysis reveals a dominant first component (PC1) capturing the synchronized global monetary policy cycle — most visibly the 2021–2023 tightening that swept DM and EM simultaneously. PC1 shows positive loadings on all constituents and is generally not dominated by a few.</p>
+    <p>PC1 tracks the equal-weight index closely for any group, confirming the EW average captures the dominant factor with minimal information loss. The same structure holds for the momentum signal.</p>
+    <p id="pca-stats" class="stat-callout"></p>
+  </div>
+
+  <div class="d-flex flex-wrap align-items-center gap-4 mt-3 mb-1">
+    <div class="d-flex align-items-center gap-2">
+      <span style="font-size:0.78rem;font-weight:600;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase">Signal:</span>
+      <div class="radio-group" id="pca-signal-radio">
+        <label class="radio-btn active" data-value="tone"><input type="radio" name="pca-signal" value="tone" checked> Sentiment</label>
+        <label class="radio-btn" data-value="momentum"><input type="radio" name="pca-signal" value="momentum"> Momentum</label>
+      </div>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <span style="font-size:0.78rem;font-weight:600;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase">Group:</span>
+      <div class="radio-group" id="pca-group-radio">
+        <label class="radio-btn active" data-value="All"><input type="radio" name="pca-group" value="All" checked> All</label>
+        <label class="radio-btn" data-value="DM"><input type="radio" name="pca-group" value="DM"> DM</label>
+        <label class="radio-btn" data-value="EM"><input type="radio" name="pca-group" value="EM"> EM</label>
+        <label class="radio-btn" data-value="NA"><input type="radio" name="pca-group" value="NA"> NA</label>
+        <label class="radio-btn" data-value="Europe"><input type="radio" name="pca-group" value="Europe"> Europe</label>
+        <label class="radio-btn" data-value="Asia-Pac"><input type="radio" name="pca-group" value="Asia-Pac"> Asia-Pac</label>
+        <label class="radio-btn" data-value="LATAM"><input type="radio" name="pca-group" value="LATAM"> LATAM</label>
+        <label class="radio-btn" data-value="EMEA"><input type="radio" name="pca-group" value="EMEA"> EMEA</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mt-2">
+    <div class="col-12">
+      <p class="chart-label">PC1 Loadings</p>
+      <div id="pca-loadings-chart" class="plotly-chart"></div>
+    </div>
+  </div>
+  <div class="row g-3 mt-2 mb-3">
+    <div class="col-lg-7 col-12">
+      <p class="chart-label">PC1 Time Series vs Equal-Weight Index</p>
+      <div id="pca-ts-chart" class="plotly-chart"></div>
+    </div>
+    <div class="col-lg-5 col-12">
+      <p class="chart-label">Variance Explained by Principal Component</p>
+      <div id="pca-scree-chart" class="plotly-chart"></div>
+    </div>
+  </div>
+
+  <div class="section-header" style="border-top-color:#4ade80">2. Regional Patterns &amp; Divergence</div>
+  <div class="prose-dark">
+    <p>DM banks are more tightly synchronized than EM. Within DM, NA and Europe move in near-lockstep during policy cycles — 5-year pairwise correlations run 0.7–0.9. LATAM banks (BRL, CLP, COP, MXN) led the 2021 tightening by roughly two quarters ahead of the FED and ECB, reacting earlier to commodity and currency-driven inflation. Several EMEA banks (CZK, HUF, PLN) followed a similar early-mover pattern.</p>
+  </div>
+  <div class="row g-3 mt-1 mb-3">
+    <div class="col-lg-7 col-12">
+      <div id="findings-latam-lead" class="plotly-chart"></div>
+      <p class="chart-label">LATAM tone turns decisively hawkish in late 2020 / early 2021 — FED and ECB follow roughly two quarters later</p>
+    </div>
+    <div class="col-lg-5 col-12">
+      <div id="findings-regional-corr" class="plotly-chart"></div>
+      <p class="chart-label">NA and Europe show tightest within-group synchronization; Asia-Pac is the most loosely coordinated region</p>
+    </div>
+  </div>
+
+
+  <div style="height:60px"></div>
+</div>
+
+<!-- ── Footer ─────────────────────────────────────────────────────────────── -->
+<div id="site-footer" style="scroll-margin-top:60px">
+  <div class="container-xl py-4">
+    <p class="text-muted small text-center mb-3">
+      The CB Sentiment Project &middot; 3-model ensemble: Claude · Gemini · DeepSeek &middot; Built by Prem Chattani
+    </p>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:14px 20px;font-size:0.72rem;color:var(--text3);line-height:1.7;max-width:900px;margin:0 auto">
+      <strong style="color:var(--text2);font-size:0.76rem">DISCLAIMER</strong><br>
+      The information, analysis, and views expressed on this website are solely those of the author in a personal capacity and do not represent the views, opinions, or positions of any current or former employer or affiliated institution. Nothing on this website constitutes investment advice, financial advice, trading advice, or any other form of advice. This website is provided for informational and educational purposes only. The author makes no representation or warranty, express or implied, as to the accuracy, completeness, or timeliness of any information presented herein. All data, scores, and indicators are experimental outputs of an automated natural-language-processing pipeline and may contain errors, omissions, or inaccuracies — all errors are the author's own. Nothing on this website should be construed as a solicitation, recommendation, or inducement to buy, sell, or hold any financial instrument or to engage in any investment strategy. Users of this website accept full responsibility for any decisions made based on information presented here and agree to use this resource entirely at their own risk. Past signal performance is not indicative of future results. This website is not registered with, nor supervised by, any financial regulatory authority.
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
