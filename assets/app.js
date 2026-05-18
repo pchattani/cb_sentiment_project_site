@@ -53,11 +53,10 @@ const PLOTLY_CONFIG = {
 
 function react(divId, fig) {
   if (!fig || !fig.data) return;
-  Plotly.react(divId, fig.data, fig.layout, PLOTLY_CONFIG);
-  setTimeout(() => {
-    const el = document.getElementById(divId);
-    if (el && el.data) Plotly.relayout(divId, {autosize: true});
-  }, 50);
+  // Reading offsetWidth forces a layout reflow, stabilizing container dimensions
+  // before Plotly measures them — prevents invisible traces after toggle on mobile/WebKit
+  void document.getElementById(divId)?.offsetWidth;
+  Plotly.newPlot(divId, structuredClone(fig.data), structuredClone(fig.layout), PLOTLY_CONFIG);
 }
 
 /* ── Score color helpers ───────────────────────────────────────────────── */
@@ -313,7 +312,8 @@ function _renderDistribution(divId, isMom, st, cbKeys) {
   });
   const xRange = isMom ? [-2.2, 2.2] : [-10.5, 10.5];
   const xTitle = isMom ? "Momentum Indicator (− hawkish / + dovish)" : "Sentiment Score (− hawkish / + dovish)";
-  Plotly.react(divId, traces, {
+  void document.getElementById(divId)?.offsetWidth;
+  Plotly.newPlot(divId, traces, {
     paper_bgcolor: "#161b22", plot_bgcolor: "#161b22",
     font: { color: "#e6edf3" },
     xaxis: { title: xTitle, range: xRange, gridcolor: "rgba(255,255,255,0.06)",
@@ -459,7 +459,8 @@ function renderScatterAtDate(dateStr) {
   const xRange = [Math.min(...xVals) - xPad, Math.max(...xVals) + xPad];
   const yRange = [Math.min(...yVals) - yPad, Math.max(...yVals) + yPad];
 
-  Plotly.react("scatter-chart", [...legendTraces, ...dataTraces], {
+  void document.getElementById("scatter-chart")?.offsetWidth;
+  Plotly.newPlot("scatter-chart", [...legendTraces, ...dataTraces], {
     paper_bgcolor: "#161b22", plot_bgcolor: "#161b22",
     font: { color: "#e6edf3" },
     xaxis: { title: "Momentum Indicator  (− hawkish / + dovish)",
