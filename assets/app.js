@@ -54,6 +54,8 @@ const PLOTLY_CONFIG = {
 function react(divId, fig) {
   if (!fig || !fig.data) return;
   Plotly.react(divId, fig.data, fig.layout, PLOTLY_CONFIG);
+  const el = document.getElementById(divId);
+  if (el && el._fullLayout) Plotly.Plots.resize(el);
 }
 
 /* ── Score color helpers ───────────────────────────────────────────────── */
@@ -778,6 +780,7 @@ async function loadStats() {
     // Stress charts: signal-only via .tone-mode / .mom-mode
     document.querySelectorAll(".tone-mode").forEach(el => el.classList.toggle("d-none", statsSignal === "momentum"));
     document.querySelectorAll(".mom-mode").forEach(el => el.classList.toggle("d-none", statsSignal === "tone"));
+    window.dispatchEvent(new Event('resize'));
   }
 
   wireRadio("stats-mode-radio", val => {
