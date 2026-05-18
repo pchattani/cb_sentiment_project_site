@@ -54,8 +54,10 @@ const PLOTLY_CONFIG = {
 function react(divId, fig) {
   if (!fig || !fig.data) return;
   Plotly.react(divId, fig.data, fig.layout, PLOTLY_CONFIG);
-  const el = document.getElementById(divId);
-  if (el && el._fullLayout) Plotly.Plots.resize(el);
+  setTimeout(() => {
+    const el = document.getElementById(divId);
+    if (el && el.data) Plotly.relayout(divId, {autosize: true});
+  }, 50);
 }
 
 /* ── Score color helpers ───────────────────────────────────────────────── */
