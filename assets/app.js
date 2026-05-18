@@ -867,6 +867,7 @@ async function init() {
     wireRadio("agg-mode-radio", async (val) => {
       S.aggMode = val;
       await updateAggCharts();
+      window.dispatchEvent(new Event('resize'));
     });
 
     wireRadio("agg-dist-lookback-radio", (val) => {
