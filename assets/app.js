@@ -66,13 +66,18 @@ function react(divId, fig) {
   // because Plotly.Plots.resize (triggered by window resize) can reset autorange to true.
   let lockedRange = null;
   if (isLineChart) {
-    // Use semantically fixed ranges: sentiment is bounded [-10,10] by definition,
-    // momentum by [-2.5,2.5]. Detect by data magnitude.
-    let yMax = 0;
-    for (const trace of data)
-      for (const v of (trace.y || []))
-        if (v != null && isFinite(v) && Math.abs(v) > yMax) yMax = Math.abs(v);
-    lockedRange = yMax > 3 ? [-10, 10] : [-2.5, 2.5];
+    // Lock y-range to full data extent (all traces, including hidden) plus zero.
+    let yMin = 0, yMax = 0;
+    for (const trace of data) {
+      for (const v of (trace.y || [])) {
+        if (v != null && isFinite(v)) {
+          if (v < yMin) yMin = v;
+          if (v > yMax) yMax = v;
+        }
+      }
+    }
+    const pad = (yMax - yMin) * 0.05 || 0.5;
+    lockedRange = [yMin - pad, yMax + pad];
     layout.yaxis = layout.yaxis || {};
     layout.yaxis.range = lockedRange;
     layout.yaxis.autorange = false;
