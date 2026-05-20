@@ -66,17 +66,13 @@ function react(divId, fig) {
   // because Plotly.Plots.resize (triggered by window resize) can reset autorange to true.
   let lockedRange = null;
   if (isLineChart) {
-    let yMin = 0, yMax = 0;
-    for (const trace of data) {
-      for (const v of (trace.y || [])) {
-        if (v != null && isFinite(v)) {
-          if (v < yMin) yMin = v;
-          if (v > yMax) yMax = v;
-        }
-      }
-    }
-    const pad = (yMax - yMin) * 0.05 || 0.5;
-    lockedRange = [yMin - pad, yMax + pad];
+    // Use semantically fixed ranges: sentiment is bounded [-10,10] by definition,
+    // momentum by [-2.5,2.5]. Detect by data magnitude.
+    let yMax = 0;
+    for (const trace of data)
+      for (const v of (trace.y || []))
+        if (v != null && isFinite(v) && Math.abs(v) > yMax) yMax = Math.abs(v);
+    lockedRange = yMax > 3 ? [-10, 10] : [-2.5, 2.5];
     layout.yaxis = layout.yaxis || {};
     layout.yaxis.range = lockedRange;
     layout.yaxis.autorange = false;
@@ -86,12 +82,11 @@ function react(divId, fig) {
     if (!isLineChart || !lockedRange) return;
     const el = document.getElementById(divId);
     if (!el) return;
-    // Let Plotly's default legend handler toggle the trace natively (works on mobile touch).
-    // plotly_restyle fires after Plotly's own handler completes; restore the locked range there.
-    // This avoids relying on `return false` which iOS Safari ignores for touch-triggered events.
+    // plotly_afterplot fires after the full render cycle including any autorange Plotly applied.
+    // Restoring the locked range here ensures it wins over autorange on all browsers/touch.
     let pendingRestore = false;
     el.on("plotly_legendclick", () => { pendingRestore = true; });
-    el.on("plotly_restyle", () => {
+    el.on("plotly_afterplot", () => {
       if (!pendingRestore) return;
       pendingRestore = false;
       Plotly.relayout(divId, { "yaxis.autorange": false, "yaxis.range": lockedRange });
