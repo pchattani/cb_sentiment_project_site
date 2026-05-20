@@ -86,15 +86,15 @@ function react(divId, fig) {
     if (!isLineChart || !lockedRange) return;
     const el = document.getElementById(divId);
     if (!el) return;
-    el.on("plotly_legendclick", (e) => {
-      const idx = e?.curveNumber;
-      if (idx === undefined) return false;
-      const vis = el.data[idx]?.visible;
-      // restyle (data-only) avoids triggering Plotly's responsive resize handler,
-      // which re-measures the container and can collapse chart height on mobile.
-      // autorange:false locked at newPlot time means restyle won't rescale the axis.
-      Plotly.restyle(divId, { visible: vis === "legendonly" ? true : "legendonly" }, [idx]);
-      return false;
+    // Let Plotly's default legend handler toggle the trace natively (works on mobile touch).
+    // plotly_restyle fires after Plotly's own handler completes; restore the locked range there.
+    // This avoids relying on `return false` which iOS Safari ignores for touch-triggered events.
+    let pendingRestore = false;
+    el.on("plotly_legendclick", () => { pendingRestore = true; });
+    el.on("plotly_restyle", () => {
+      if (!pendingRestore) return;
+      pendingRestore = false;
+      Plotly.relayout(divId, { "yaxis.autorange": false, "yaxis.range": lockedRange });
     });
   });
 }
