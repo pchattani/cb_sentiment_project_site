@@ -56,7 +56,47 @@ function react(divId, fig) {
   // Reading offsetWidth forces a layout reflow, stabilizing container dimensions
   // before Plotly measures them — prevents invisible traces after toggle on mobile/WebKit
   void document.getElementById(divId)?.offsetWidth;
-  Plotly.newPlot(divId, structuredClone(fig.data), structuredClone(fig.layout), PLOTLY_CONFIG);
+  const data   = structuredClone(fig.data);
+  const layout = structuredClone(fig.layout);
+
+  const isLineChart = data.length > 0 && data[0].type === "scatter" && Array.isArray(data[0].y);
+
+  // For line charts: compute y-range across ALL traces + zero and lock it.
+  // autorange must be false before newPlot AND re-enforced on every legend click,
+  // because Plotly.Plots.resize (triggered by window resize) can reset autorange to true.
+  let lockedRange = null;
+  if (isLineChart) {
+    let yMin = 0, yMax = 0;
+    for (const trace of data) {
+      for (const v of (trace.y || [])) {
+        if (v != null && isFinite(v)) {
+          if (v < yMin) yMin = v;
+          if (v > yMax) yMax = v;
+        }
+      }
+    }
+    const pad = (yMax - yMin) * 0.05 || 0.5;
+    lockedRange = [yMin - pad, yMax + pad];
+    layout.yaxis = layout.yaxis || {};
+    layout.yaxis.range = lockedRange;
+    layout.yaxis.autorange = false;
+  }
+
+  Plotly.newPlot(divId, data, layout, PLOTLY_CONFIG).then(() => {
+    if (!isLineChart || !lockedRange) return;
+    const el = document.getElementById(divId);
+    if (!el) return;
+    el.on("plotly_legendclick", (e) => {
+      const idx = e?.curveNumber;
+      if (idx === undefined) return false;
+      const vis = el.data[idx]?.visible;
+      // Combined update: toggle trace visibility + re-enforce locked range in one render.
+      // Re-enforcing autorange:false here guards against resize events resetting it between renders.
+      Plotly.update(divId, { visible: vis === "legendonly" ? true : "legendonly" },
+        { "yaxis.autorange": false, "yaxis.range": lockedRange }, [idx]);
+      return false;
+    });
+  });
 }
 
 /* ── Score color helpers ───────────────────────────────────────────────── */
@@ -873,7 +913,6 @@ async function init() {
     wireRadio("agg-mode-radio", async (val) => {
       S.aggMode = val;
       await updateAggCharts();
-      window.dispatchEvent(new Event('resize'));
     });
 
     wireRadio("agg-dist-lookback-radio", (val) => {
