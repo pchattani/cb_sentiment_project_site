@@ -90,10 +90,10 @@ function react(divId, fig) {
       const idx = e?.curveNumber;
       if (idx === undefined) return false;
       const vis = el.data[idx]?.visible;
-      // Combined update: toggle trace visibility + re-enforce locked range in one render.
-      // Re-enforcing autorange:false here guards against resize events resetting it between renders.
-      Plotly.update(divId, { visible: vis === "legendonly" ? true : "legendonly" },
-        { "yaxis.autorange": false, "yaxis.range": lockedRange }, [idx]);
+      // restyle (data-only) avoids triggering Plotly's responsive resize handler,
+      // which re-measures the container and can collapse chart height on mobile.
+      // autorange:false locked at newPlot time means restyle won't rescale the axis.
+      Plotly.restyle(divId, { visible: vis === "legendonly" ? true : "legendonly" }, [idx]);
       return false;
     });
   });
