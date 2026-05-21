@@ -88,18 +88,8 @@
 
   <!-- ── Sentiment and Momentum Snapshot ──────────────────────────────────── -->
   <div class="section-header" style="border-top-color:#a78bfa">Sentiment and Momentum Snapshot</div>
-  <div class="d-flex align-items-center gap-3 flex-wrap mb-2">
-    <p class="chart-label mb-0">Sentiment score (y) vs momentum indicator (x) &middot; negative&nbsp;=&nbsp;hawkish &middot; positive&nbsp;=&nbsp;dovish</p>
-    <div class="d-flex align-items-center gap-2">
-      <span class="filter-label" style="color:var(--text3)">DATE</span>
-      <input type="month" id="scatter-date" class="cb-select" style="min-width:130px">
-      <span class="filter-hint">pick month for historical view</span>
-    </div>
-  </div>
-  <div id="scatter-chart" class="plotly-chart"></div>
-
   <!-- Cross-CB distributions -->
-  <div class="d-flex align-items-center gap-3 flex-wrap mt-4 mb-2">
+  <div class="d-flex align-items-center gap-3 flex-wrap mb-2">
     <p class="chart-label mb-0">Cross-CB Distributions — current value marked ◆</p>
     <div id="agg-dist-lookback-radio" class="radio-group">
       <label class="radio-btn active" data-value="2"><input type="radio" name="aggdist" value="2" checked> 2Y</label>
@@ -118,6 +108,34 @@
       <div id="mom-dist-chart" class="plotly-chart" style="min-height:280px"></div>
     </div>
   </div>
+
+  <div class="d-flex align-items-center gap-3 flex-wrap mt-4 mb-2">
+    <p class="chart-label mb-0">Sentiment score (y) vs momentum indicator (x) &middot; negative&nbsp;=&nbsp;hawkish &middot; positive&nbsp;=&nbsp;dovish</p>
+    <div class="d-flex align-items-center gap-2">
+      <span class="filter-label" style="color:var(--text3)">DATE</span>
+      <input type="month" id="scatter-date" class="cb-select" style="min-width:130px">
+      <span class="filter-hint">pick month for historical view</span>
+    </div>
+  </div>
+  <div id="scatter-chart" class="plotly-chart"></div>
+
+  <!-- ── Individual CB View ────────────────────────────────────────────────── -->
+  <div class="section-header" style="border-top-color:#f97316">Individual CB View</div>
+  <div class="mb-3">
+    <select id="cb-detail-select" class="cb-select"></select>
+  </div>
+  <p class="chart-label mb-1">Sentiment Score</p>
+  <div id="detail-chart" class="plotly-chart"></div>
+  <p class="chart-label mb-1 mt-3">Momentum Indicator — Hawkish / Dovish</p>
+  <div id="pos-chart" class="plotly-chart"></div>
+  <div class="d-flex align-items-center mb-1 mt-3">
+    <p class="chart-label me-3 mb-0">Distribution</p>
+    <div id="dist-radio" class="radio-group">
+      <label class="radio-btn active" data-value="tone"><input type="radio" name="dist" value="tone" checked> Sentiment</label>
+      <label class="radio-btn" data-value="pos"><input type="radio" name="dist" value="pos"> Momentum</label>
+    </div>
+  </div>
+  <div id="dist-chart" class="plotly-chart"></div>
 
   <!-- ── Aggregate Scores ──────────────────────────────────────────────────── -->
   <div class="section-header" style="border-top-color:#58a6ff">Aggregate Scores — Equal-Weight Indices</div>
@@ -179,28 +197,6 @@
   </div>
   <div id="corr-chart" class="plotly-chart"></div>
 
-  <!-- ── Individual CB Deep Dive ───────────────────────────────────────────── -->
-  <div class="section-header" style="border-top-color:#f97316">Individual CB Deep Dive</div>
-  <div class="mb-3">
-    <select id="cb-detail-select" class="cb-select"></select>
-  </div>
-  <div id="detail-chart" class="plotly-chart"></div>
-  <div class="row g-3 mt-1">
-    <div class="col-lg-5 col-12">
-      <div class="d-flex align-items-center mb-1">
-        <p class="chart-label me-3 mb-0">Distribution</p>
-        <div id="dist-radio" class="radio-group">
-          <label class="radio-btn active" data-value="tone"><input type="radio" name="dist" value="tone" checked> Sentiment</label>
-          <label class="radio-btn" data-value="pos"><input type="radio" name="dist" value="pos"> Momentum</label>
-        </div>
-      </div>
-      <div id="dist-chart" class="plotly-chart"></div>
-    </div>
-    <div class="col-lg-7 col-12">
-      <p class="chart-label mb-1">Momentum Indicator — Hawkish / Dovish</p>
-      <div id="pos-chart" class="plotly-chart"></div>
-    </div>
-  </div>
   <!-- ── Model Comparison ─────────────────────────────────────────────────── -->
   <div class="section-header" style="border-top-color:#f97316">Model Score Comparison — Claude · Gemini · DeepSeek + Ensemble</div>
   <div class="mb-3">
@@ -431,7 +427,7 @@
     <p><strong>Sentiment vs Momentum Snapshot:</strong> Current sentiment score (y) vs momentum indicator (x). CBs in the bottom-left are hawkish with accelerating hawkish momentum; top-right are dovish with accelerating dovish momentum.</p>
     <p><strong>Group Views — Partition filter:</strong> Use DM/EM or regional cuts to compare policy synchronization within a peer group. Toggle between Sentiment and Momentum to compare the level signal with the directional signal.</p>
     <p><strong>Correlation matrix:</strong> Pairwise sentiment (or momentum) correlation — which central banks move in lockstep vs. diverge. Use the period selector (2Y, 5Y, 10Y, All) to see how correlation structures shift over time.</p>
-    <p><strong>Individual CB Deep Dive:</strong> Dot scatter of raw statement scores plus 3-month rolling average. Distribution toggle shows the historical spread of sentiment or momentum. The momentum indicator shows the directional positioning signal.</p>
+    <p><strong>Individual CB View:</strong> Dot scatter of raw statement scores plus 3-month rolling average. Distribution toggle shows the historical spread of sentiment or momentum. The momentum indicator shows the directional positioning signal.</p>
     <p><strong>Model Comparison:</strong> Verify that individual model scores align with the ensemble.</p>
 
   </div>
