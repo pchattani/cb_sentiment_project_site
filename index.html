@@ -46,6 +46,7 @@
       <li class="nav-item"><a class="nav-link active" href="#" data-tab="dashboard">Dashboard</a></li>
       <li class="nav-item"><a class="nav-link" href="#" data-tab="methodology">Methodology</a></li>
       <li class="nav-item"><a class="nav-link" href="#" data-tab="stats">Statistical Summary &amp; Observations</a></li>
+      <li class="nav-item"><a class="nav-link" href="#" data-tab="explorer">Statement Explorer</a></li>
     </ul>
   </div>
 </div>
@@ -591,6 +592,38 @@
   <div style="height:60px"></div>
 </div>
 
+<!-- ── Statement Explorer ──────────────────────────────────────────────────── -->
+<div id="tab-explorer" class="tab-content-pane container-xl">
+
+  <p class="section-title">Statement Explorer</p>
+  <p style="font-size:0.8rem;color:var(--text3);max-width:900px;line-height:1.6">
+    Read any two statements side by side, sentence by sentence, with each
+    model's score and the ensemble. Background shading is the ensemble tone:
+    <span style="background:rgba(248,81,73,0.45);padding:1px 6px;border-radius:3px">hawkish</span>
+    to
+    <span style="background:rgba(63,185,80,0.45);padding:1px 6px;border-radius:3px">dovish</span>.
+    Sentences carrying no policy signal are scored <code>null</code> by design
+    and shown as &mdash;.
+  </p>
+
+  <div class="d-flex flex-wrap align-items-end gap-3 mb-3">
+    <div>
+      <label class="chart-label d-block mb-1">Central bank</label>
+      <select id="exp-cb-select" class="cb-select"></select>
+    </div>
+    <div>
+      <label class="chart-label d-block mb-1">Statement A</label>
+      <select id="exp-date-a" class="cb-select"></select>
+    </div>
+    <div>
+      <label class="chart-label d-block mb-1">Statement B</label>
+      <select id="exp-date-b" class="cb-select"></select>
+    </div>
+  </div>
+
+  <div id="exp-panels" class="row g-3"></div>
+</div>
+
 <!-- ── Footer ─────────────────────────────────────────────────────────────── -->
 <div id="site-footer" style="scroll-margin-top:60px">
   <div class="container-xl py-4">
@@ -603,6 +636,7 @@
     </div>
   </div>
 </div>
+
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>

@@ -12,6 +12,7 @@ const S = {
   detailCB:        "FED",
   distMode:        "tone",
   modelCmpCB:      "FED",
+  explorerCB:      "FED",
   aggMode:         "sentiment",   // single toggle: controls agg + group views
   aggDistLookback: 2,
 };
@@ -26,6 +27,7 @@ const cache = {
   results: null,
   methodology: null,
   pcaWired: false,
+  explorerWired: false,
 };
 
 let CB_GROUPS = {};  // populated from global.json
@@ -415,11 +417,17 @@ function updateCorr() {
 }
 
 /* ── Load CB data ───────────────────────────────────────────────────────── */
-async function loadCB(cb) {
+// Fetch-and-cache only. Split out from loadCB so other tabs can read a CB's
+// JSON without triggering the Dashboard tab's chart re-render as a side effect.
+async function loadCbData(cb) {
   if (!cache.cbs[cb]) {
     cache.cbs[cb] = await fetchJSON(`data/cb_${cb}.json`);
   }
-  const d = cache.cbs[cb];
+  return cache.cbs[cb];
+}
+
+async function loadCB(cb) {
+  const d = await loadCbData(cb);
   react("detail-chart",    d.detail);
   react("dist-chart",      S.distMode === "pos" ? d.pos_dist : d.dist);
   react("pos-chart",       d.pos_ts);
@@ -547,8 +555,13 @@ async function loadCbSentences(cb) {
   if (!cache.cbSentences[cb]) {
     try {
       cache.cbSentences[cb] = await fetchJSON(`data/cb_sentences_${cb}.json`);
-    } catch (_) {
-      cache.cbSentences[cb] = {};
+    } catch (err) {
+      // Do NOT cache the empty result. These files are the largest on the site
+      // (ECB alone is ~9 MB), so a transient failure is entirely possible — and
+      // caching {} would poison it for the rest of the session, leaving the UI
+      // permanently claiming the CB has no sentence data.
+      console.warn(`cb_sentences_${cb}.json failed to load:`, err);
+      return null;
     }
   }
   return cache.cbSentences[cb];
@@ -853,6 +866,199 @@ function wireRadio(groupId, onChange) {
 }
 
 /* ── Tab switching ──────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════════
+   STATEMENT EXPLORER
+   Port of dashboard/app.py::sentence_table (916-976) and _score_bg (906-913).
+
+   Kept faithful to the Dash original: canonical sentence order, ensemble =
+   mean of non-null model scores, numbered rows, header carrying the date plus
+   the document score and sentence count, and two panels rendered independently
+   (the Dash app does not align sentences across the two dates either).
+
+   One deliberate addition: the Dash table shows an Ensemble column only, while
+   this shows each model too, in the Dash app's own model colours.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const EXP_MODELS = [
+  { key: "claude",   label: "Claude",   color: "#c084fc" },
+  { key: "gemini",   label: "Gemini",   color: "#4ade80" },
+  { key: "deepseek", label: "DeepSeek", color: "#60a5fa" },
+];
+
+// dashboard/app.py::_score_bg — continuous alpha ramp, red hawkish / green
+// dovish. Deliberately not the 6-step sentenceBg() above, so the published
+// view matches the internal Dash table band for band.
+function expScoreBg(v) {
+  if (v === null || v === undefined || Number.isNaN(v)) return "transparent";
+  const intensity = Math.min(Math.abs(v) / 10, 1.0);
+  const alpha = (0.15 + intensity * 0.55).toFixed(2);
+  return v < 0 ? `rgba(248,81,73,${alpha})` : `rgba(63,185,80,${alpha})`;
+}
+
+function expFmt(v, dp = 1) {
+  if (v === null || v === undefined || Number.isNaN(v)) return "—";
+  return (v >= 0 ? "+" : "") + v.toFixed(dp);
+}
+
+function expPanel(rows, dateStr, overall) {
+  if (!rows || !rows.length) {
+    return `<div class="col-lg-6 col-12"><div style="color:var(--text3);
+      font-size:0.8rem;padding:12px">No sentence data for ${dateStr}.</div></div>`;
+  }
+
+  const scored = rows.filter(r => r.ens !== null && r.ens !== undefined).length;
+  const perModel = EXP_MODELS.map(m =>
+    `<span style="color:${m.color};margin-right:10px">${m.label}&nbsp;${
+      expFmt(overall ? overall[m.key] : null, 2)}</span>`).join("");
+
+  const head = `
+    <div style="padding:8px 4px 6px;border-bottom:2px solid var(--border)">
+      <div style="font-weight:700;font-size:1rem;color:var(--text)">${dateStr}</div>
+      <div style="font-size:0.78rem;color:var(--text2);margin-top:3px">
+        ${perModel}
+        <span style="font-weight:700;color:var(--text)">Ensemble&nbsp;${
+          expFmt(overall ? overall.ensemble : null, 2)}</span>
+        <span style="color:var(--text3);margin-left:10px">${rows.length} sentences,
+          ${scored} scored</span>
+      </div>
+    </div>`;
+
+  const th = `padding:5px 4px;background:var(--bg3);color:var(--text2);
+    font-size:0.72rem;text-align:center;white-space:nowrap;
+    border-bottom:1px solid var(--border)`;
+
+  const body = rows.map((r, i) => {
+    const bg = expScoreBg(r.ens);
+    const rowBg = i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)";
+    const cells = EXP_MODELS.map(m =>
+      `<td style="padding:3px 4px;text-align:center;font-size:0.74rem;
+        color:${r[m.key] === null || r[m.key] === undefined ? "var(--text3)" : m.color}"
+        >${expFmt(r[m.key])}</td>`).join("");
+    return `<tr style="border-bottom:1px solid var(--border);background:${rowBg}">
+      <td style="padding:3px 5px;text-align:center;font-size:0.72rem;
+        color:var(--text3);width:3%">${i + 1}</td>
+      <td style="padding:4px 6px;font-size:0.79rem;line-height:1.45;
+        color:var(--text)">${escapeHtml(r.text)}</td>
+      ${cells}
+      <td style="padding:3px 4px;text-align:center;font-weight:700;
+        font-size:0.82rem;background:${bg};color:var(--text);
+        border-left:1px solid var(--border)">${expFmt(r.ens)}</td>
+    </tr>`;
+  }).join("");
+
+  return `
+    <div class="col-lg-6 col-12">
+      ${head}
+      <div style="overflow-y:auto;max-height:640px">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr>
+            <th style="${th};width:3%">#</th>
+            <th style="${th};text-align:left">Sentence</th>
+            ${EXP_MODELS.map(m =>
+              `<th style="${th};color:${m.color}">${m.label.slice(0, 1)}</th>`).join("")}
+            <th style="${th};color:var(--blue)">Ens</th>
+          </tr></thead>
+          <tbody>${body}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// Monotonic token: a slow response for a CB the user has already navigated
+// away from must not overwrite the current view. These payloads are large
+// (ECB ~9 MB), so an in-flight request outliving its selection is routine.
+let expRenderToken = 0;
+
+function expError(msg) {
+  return `<div style="padding:14px;color:var(--red, #f85149);font-size:0.82rem">
+    ${msg} <button id="exp-retry" class="radio-btn" style="margin-left:10px">Retry</button>
+  </div>`;
+}
+
+function expWireRetry(fn) {
+  const btn = document.getElementById("exp-retry");
+  if (btn) btn.addEventListener("click", fn);
+}
+
+async function renderExplorer() {
+  const cb = S.explorerCB;
+  const token = ++expRenderToken;
+  const wrap = document.getElementById("exp-panels");
+  wrap.innerHTML = `<div style="color:var(--text3);font-size:0.8rem;padding:12px">
+    Loading ${cb} sentence detail…</div>`;
+
+  const [sentences, cbData] = await Promise.all([
+    loadCbSentences(cb),
+    loadCbData(cb).catch(() => null),
+  ]);
+  if (token !== expRenderToken) return;   // superseded by a newer selection
+
+  if (!sentences) {
+    wrap.innerHTML = expError(`Could not load sentence data for ${cb}.`);
+    expWireRetry(renderExplorer);
+    return;
+  }
+
+  // Overall per-model + composite per date, from cb_{CB}.json.scores
+  const overall = {};
+  ((cbData && cbData.scores) || []).forEach(r => { overall[r.date] = r; });
+
+  const a = document.getElementById("exp-date-a").value;
+  const b = document.getElementById("exp-date-b").value;
+
+  wrap.innerHTML =
+    expPanel(sentences[a], a, overall[a]) +
+    expPanel(sentences[b], b, overall[b]);
+}
+
+async function populateExplorerDates() {
+  const cb = S.explorerCB;
+  const sentences = await loadCbSentences(cb);
+  const selA = document.getElementById("exp-date-a");
+  const selB = document.getElementById("exp-date-b");
+
+  if (!sentences) {                      // fetch failed — leave selects empty
+    selA.innerHTML = selB.innerHTML = "";
+    return false;
+  }
+
+  const dates = Object.keys(sentences).sort().reverse();   // newest first
+  const opts = dates.map(d => `<option value="${d}">${d}</option>`).join("");
+  selA.innerHTML = opts;
+  selB.innerHTML = opts;
+  // Dash default: the two most recent meetings (app.py:1541-1547)
+  if (dates.length) selA.value = dates[0];
+  if (dates.length > 1) selB.value = dates[1];
+  return true;
+}
+
+async function loadExplorer() {
+  if (!cache.explorerWired) {
+    cache.explorerWired = true;
+
+    const cbSel = document.getElementById("exp-cb-select");
+    cbSel.innerHTML = (cache.global?.cb_meta || [])
+      .map(m => `<option value="${m.key}">${m.label} — ${m.name}</option>`).join("");
+    cbSel.value = S.explorerCB;
+
+    cbSel.addEventListener("change", async e => {
+      S.explorerCB = e.target.value;
+      await populateExplorerDates();
+      await renderExplorer();
+    });
+    ["exp-date-a", "exp-date-b"].forEach(id =>
+      document.getElementById(id).addEventListener("change", renderExplorer));
+
+    await populateExplorerDates();
+  }
+  await renderExplorer();
+}
+
 function wireTabNav() {
   document.querySelectorAll("#mainTabs .nav-link").forEach(link => {
     link.addEventListener("click", e => {
@@ -864,6 +1070,7 @@ function wireTabNav() {
       document.getElementById(`tab-${tab}`).classList.add("active");
       if (tab === "methodology") { loadMethodology(); loadResults(); }
       if (tab === "stats")       { loadStats(); loadResults(); }
+      if (tab === "explorer")    { loadExplorer(); }
     });
   });
 }
