@@ -45,17 +45,20 @@ You are **not** on the maintainer's machine. Assume:
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.lock     # the lock, not requirements.txt
-.venv/bin/python -m pytest tests/ -m "not network"   # expect 336 passed, 1 skipped
-.venv/bin/ruff check src/ scripts/ tests/            # 78 pre-existing findings (I4)
+.venv/bin/python -m pytest tests/ -m "not network"   # 336 on main; 423 on calendar/dead-parsers
+.venv/bin/ruff check src/ scripts/ tests/            # 78 on main; 75 on calendar/dead-parsers (I4)
 ```
 
 No `playwright install` needed — nothing here drives a browser.
 
 ---
 
-## 2. Start here: D9 — six dead calendar parsers
+## 2. ~~Start here: D9 — six dead calendar parsers~~ ✅ DONE 2026-08-23
 
-**This is the highest-value work available and it is fully unblocked.**
+> **Done** on branch `calendar/dead-parsers` — see §4b for what landed and
+> what still needs the maintainer's machine. The brief below is kept because
+> it is an accurate description of the bug and of how to approach the next
+> one of its kind.
 
 `refresh_calendars.py` has 10 auto-fetchers. Six parse **zero** dates from
 pages that return HTTP 200 with real content, and BOE returns 1 date for a CB
@@ -118,7 +121,8 @@ release "held on 1-2 June 2026" → `2026-06-02`).
 
 Roughly in value order. All verifiable with the test suite.
 
-- **D10 — make `refresh_calendars.py` able to fail.** Right now a monthly job
+- ~~**D10 — make `refresh_calendars.py` able to fail.**~~ ✅ **done 2026-08-23**
+  (`089200e`). Original brief: right now a monthly job
   that silently stopped refreshing is indistinguishable from one where nothing
   changed. Give it a real exit code and a summary (e.g. non-zero when a fetcher
   that previously returned dates now returns none). Note `check_calendar_health.py`
@@ -140,9 +144,9 @@ Roughly in value order. All verifiable with the test suite.
 - **B8 — dead artefacts.** `snapshot.json` is built every run and never fetched;
   `v.json` is written and never read (`app.js` cache-busts with `Date.now()`).
 - **B9 — `python-bcb` and `scikit-learn`** are declared but unused. If you drop
-  them, regenerate the lock: `uv pip compile requirements.txt --universal -o requirements.lock`
+  them, regenerate the lock: `uv pip compile requirements.txt --universal --python-version 3.11 -o requirements.lock`
   (a contract test asserts the lock covers every declared dependency).
-- **I4 — 78 ruff findings.** CI lint is `continue-on-error`, so this is safe
+- **I4 — 75 ruff findings** (78 on `main`). CI lint is `continue-on-error`, so this is safe
   chipping. Many are `B904` (`raise ... from err`). Keep it mechanical and
   separate from behaviour changes.
 
@@ -170,6 +174,40 @@ reconciled, because fixing it moves published numbers.
 - Leave a short note here or in `BACKLOG.md` saying which fetchers you fixed and
   what dates they now produce, so the computer session can verify them against
   the live pages.
+
+---
+
+## 4b. What the 2026-08-23 cloud session did
+
+Branch **`calendar/dead-parsers`** — `c05a22e` (D9) and `089200e` (D10), CI runs
+24 and 25. 423 passed, 1 skipped (from 336); ruff 75, down from 78; no data
+files touched.
+
+- **D9 — six parsers fixed** (FED, ECB, CBRT, RBA, BOE, BOT), each split into
+  `parse_<cb>_calendar(html, today)` and tested against its captured page.
+  Every page had broken differently; details are in the commit and `BACKLOG.md`.
+  **The dates each now produces are tabulated at the top of *Outstanding work*
+  in `BACKLOG.md`** — one `refresh_calendars.py --dry-run` on a networked
+  machine checks them all. `forward_dates.json` was deliberately left alone.
+- **The trap worth knowing about:** five of the six tables sit next to minutes,
+  report or second-board columns whose dates a regex cannot distinguish from a
+  decision. Just making the old patterns match again would have written ~14
+  CBRT publication dates, up to 8 RBA Payments System Board dates and 7 BOT
+  report dates into the calendar as meetings. Each parser now picks its column
+  by header name, with tests asserting the neighbours are *not* produced.
+- **BOI was misfiled.** Its fixture is a Radware challenge page — HTTP 200,
+  118 KB, 106 characters of visible text — so no parser change touches it. Now
+  **I9**, in the WAF group with the NBP recipe (R4), not the BCR one (I7).
+- **D5 is unblocked**, not closed: ECB reads to 2028-12-07, FED 2027-12-08, BOE
+  2027-12-16 (provisional, as its page says), RBA 2027-12-14, CBRT 2027-06-10.
+  Downgraded to P3 until a live run stores them.
+- **D10 — the refresh can now fail.** Non-zero exit, per-fetcher status
+  summary, `thin` to catch a partial parse like BOE's single date, and an
+  `EXPECTED_BLOCKED` set (NBP, BOI) so known WAF failures don't turn the job
+  red every month and get muted.
+
+Not attempted, per this document: I7, the bake-off, the FED charset backfill,
+D2, and anything under `data/scored/`.
 
 ---
 

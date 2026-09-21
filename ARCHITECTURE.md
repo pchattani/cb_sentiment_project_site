@@ -80,6 +80,42 @@ happened, the date has passed, no URL resolves — is the strongest breakage
 evidence in the pipeline. Adopted by NBP, BCR and SNB; see
 [`SCRAPERS.md`](SCRAPERS.md) for which CBs have what.
 
+### Where the calendar comes from
+
+`data/calendars/forward_dates.json` is load-bearing for three things — the
+probe above, the missing-meeting check, and the coverage warning — so how it is
+maintained matters.
+
+`scripts/refresh_calendars.py` runs monthly. Ten CBs have an auto-fetcher; the
+other fourteen are in `_MANUAL_REFRESH` and must be transcribed by hand. Each
+auto-fetcher is split in two:
+
+```
+parse_<cb>_calendar(html, today)   # pure, tested against a captured page
+fetch_<cb>()                       # thin: GET (or browser) + parse + report
+```
+
+The split exists because these parsers **cannot be tested any other way** — the
+fixtures in `tests/fixtures/calendars/` are what let six broken ones be
+repaired with no network access at all. Keep it when adding a CB.
+
+Two properties to respect:
+
+- **`_merge_dates` is append/upgrade-only.** It adds dates and promotes
+  estimated → confirmed, and never deletes. So a wrong stored date is permanent
+  until removed by hand, and deleting one only works if the fetcher provably
+  cannot re-add it. Fix the fetcher, not the file.
+- **A fetcher returning `[]` is broken, not quiet.** Unlike a statement
+  scraper, a calendar fetcher returns the CB's *whole* forward schedule every
+  run. `src/pipeline_health.py` classifies each outcome
+  (`ok`/`empty`/`thin`/`error`/`blocked`) and the script exits non-zero on a
+  real failure — see [`RUNBOOK.md`](RUNBOOK.md#calendar-maintenance).
+
+⚠️ **These pages print minutes, report and second-board dates in the same
+format, in the column next to the decisions.** Select the decision column by
+header name, never by scanning cells — trap 3.7 in [`HANDOFF.md`](HANDOFF.md)
+has the full account of what that costs.
+
 ### Transport
 
 Most scrapers use plain `requests`. Eight need a browser and are listed in

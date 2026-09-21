@@ -179,13 +179,35 @@ For an intentional large batch use `--full` or `--since` locally.
 ### Calendar maintenance
 
 ```bash
-.venv/bin/python scripts/refresh_calendars.py       # auto-refresh the 10 supported CBs
-.venv/bin/python scripts/check_calendar_health.py   # coverage, staleness, % confirmed
+.venv/bin/python scripts/refresh_calendars.py --dry-run   # see what would change
+.venv/bin/python scripts/refresh_calendars.py             # auto-refresh the 10 supported CBs
+.venv/bin/python scripts/check_calendar_health.py         # coverage, staleness, % confirmed
 ```
 
 `_merge_dates` is **append/upgrade-only** — it never deletes. A wrong estimated
 date persists until removed by hand, and a fetcher that re-adds a bad date will
 keep doing so. Fix recurring pollution in the fetcher, not the data file.
+
+**Reading the exit code (D10).** `refresh_calendars.py` now exits **non-zero**
+when a fetcher returns nothing usable, and prints a worst-first status per CB:
+
+| Status | Meaning |
+|---|---|
+| `ok` | Returned a plausible schedule |
+| `empty` | Returned zero dates — **broken**. A calendar fetcher returns the whole forward schedule every run, so "nothing new" is never valid |
+| `thin` | Returned fewer dates than the CB's floor — a *partial* parse, which a zero-check misses. BOE returning one date for an eight-meeting bank is the case this exists for |
+| `error` | Raised, or hit an unexpected WAF challenge |
+| `blocked` | On `EXPECTED_BLOCKED` (**NBP**, **BOI**) — a known WAF block, does **not** fail the run |
+
+It could not fail before: every fetcher swallows its own exception, an empty
+result logged at WARNING, and the run exited 0 — which is how six dead fetchers
+went unnoticed for months (D9). `check_calendar_health.py` does not cover this
+and cannot: it validates the stored **file**, not whether the refresh worked,
+and reported "adequate forward coverage" throughout that outage.
+
+`EXPECTED_BLOCKED` exists so the monthly job is not red every month for a known
+reason — an alarm that always fires gets muted. **Removing a CB from that set
+is what makes its failures start counting again.**
 
 ### Evaluating a new model release
 

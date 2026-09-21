@@ -1,5 +1,29 @@
 # Handoff
 
+> ## ✅ 2026-09-20 local session — the calendar branch is merged and five scrapers were repaired
+>
+> **Start from `BACKLOG.md`; the banners below this one are history.** Everything
+> in §2 and the `calendar/dead-parsers` branch has landed on `main`. CI run 28
+> green. **471 tests pass, ruff 75** (unchanged — no findings added).
+>
+> What changed, and what it means for anyone reading the rest of this document:
+>
+> | | |
+> |---|---|
+> | **D9/D10 merged and verified live** | The six repaired parsers were only ever proven against snapshots. Checked against the real pages: FED, ECB, BOE, RBA and CBRT all read the decision column. 46 dates written, **horizon 2026-12-23 → 2028-12-07, so D5 is closed.** |
+> | **Three scrapers were broken, and only one of them for the reason on file** | **RBNZ** (B5) had failed twice and had no discovery fallback at all. **BOI** collapsed 131 → 1 intermittently — *not* the WAF it was filed as, but two broken UI interactions. **CBRT** was discovering ten ordinary press releases as policy statements, daily. All three rebuilt; see BACKLOG. |
+> | **A real statement was unreachable and nobody knew** | CBRT's junk discovery auto-blocked a press release dated 2026-09-17, and statement ids are date-derived, so the genuine MPC summary published that day was blocked too. Recovered: 21,715 characters, ensemble -0.84. That mechanism is **B11** and it is still live. |
+> | **`build_site.py` could not run on Windows at all** | It died on the first line of its own `main()`. The local-backfill procedure in §2.3 therefore could not publish what it fetched. Fixed, with a contract test. |
+> | **NBP backfilled, and it will need doing again** | 2026-09-09 collected with `PLAYWRIGHT_HEADLESS=0`. NBP fails on the hosted runner every day by design; **every NBP meeting needs a local headed run** until R4 exists. |
+> | **BCR: I7 stands, checked rather than assumed** | Re-tested from a residential IP with headed Chromium and stealth. Still the ShieldSquare CAPTCHA. Its probe was reporting a phantom find every run and now honestly reports a MISS. |
+>
+> **The threat list is in [`SCRAPERS.md` § What we cannot guarantee](SCRAPERS.md#what-we-cannot-guarantee)**, rewritten from a live sweep of all 23 sites rather than from code reading. The sharpest item is **B15**: 18 of 23 scrapers report a 60-day window rather than a back-catalogue, so NORGESBANK, ECB and BCR have **no partial-failure detection at all**.
+>
+> Two new operator tools worth knowing about: `update.py --reset-baseline CB`
+> (for when you narrow a scraper on purpose — the baseline only ratchets up) and
+> `suspected_missing_meetings` in `last_run.json` (gap check for estimated
+> calendar dates, which is all the 14 manual-refresh banks have).
+
 > ## ⚠️ Section 2 is DONE — and three of its diagnoses were wrong
 >
 > Worked through on the maintainer's machine, 2026-08-22. Everything in §2 has
@@ -22,6 +46,33 @@
 >
 > **One open decision blocks nothing else: I7 (BCR).** See BACKLOG.
 
+> ## 🌿 A cloud session added work on an UNMERGED branch — 2026-08-23
+>
+> **`calendar/dead-parsers`**, three commits, CI runs 24–26 all green, **423
+> passed / 1 skipped**, ruff **75** (down from 78). **None of it is on `main`,
+> so none of it is live.** Merging it is the first thing to do — §2.0 below.
+>
+> It fixes **D9**: six of the ten auto-refresh calendar fetchers (FED, ECB,
+> CBRT, RBA, BOE, BOT) had been parsing **zero** dates from healthy pages, and
+> nothing detected it because each swallows its exception, returns `[]`, and
+> the monthly job still exits 0. Also **D10**: that job can now actually fail.
+>
+> Three things a reader of this document needs to know:
+>
+> | | |
+> |---|---|
+> | **The parsers are proven against snapshots, not live sites** | They were written offline against `tests/fixtures/calendars/*.html`. One `refresh_calendars.py --dry-run` on your machine confirms them — **the expected dates per CB are tabulated at the top of *Outstanding work* in `BACKLOG.md`.** This is §2.6. |
+> | **`forward_dates.json` was deliberately not edited** | `_merge_dates` never deletes (trap 3.3), so a wrong date from a stale snapshot would be permanent. Adding the dates is the job of that live run, not of a session that cannot see the pages. |
+> | **BOI was misfiled as a dead parser** | Its page is a Radware challenge — HTTP 200, 118 KB, 106 characters of visible text. No parser change touches it. Now **I9**, in the WAF group needing the NBP recipe (R4), *not* the BCR one (I7). Its statement scraper is unaffected. |
+>
+> **D5 is unblocked but not closed.** The repaired parsers read to 2028-12-07
+> (ECB), 2027-12-08 (FED), 2027-12-16 (BOE, provisional), 2027-12-14 (RBA),
+> 2027-06-10 (CBRT). The horizon only actually moves once that live run stores
+> them, so D5 is downgraded to P3 rather than struck out.
+>
+> A new trap came out of it — **3.7, reading the wrong column** — which was a
+> bigger risk than the bug itself. Read it before touching any calendar parser.
+
 Written for a fresh Claude session picking this up **on the maintainer's own
 machine** (Cursor). That environment change is the point of this document: the
 previous sessions ran in a cloud container that **could not reach any
@@ -38,9 +89,15 @@ and the traps; the backlog is the *inventory*. Don't duplicate them.
 
 ## 1. State of the repo
 
+| | |
+|---|---|
+| `main` | `f3c1145`. Phases 1–4 landed; 22 of 23 CBs current, BCR the only stale one (I7). |
+| **Unmerged** | **`calendar/dead-parsers`** — `c05a22e` (D9), `089200e` (D10), `95d78d0` (notes). CI 24–26 green. **Merge this first.** |
+| Tests | **423 passed, 1 skipped** on the branch; **336** on `main`. (The 328 in the banner above was true at CI run 20 and has since moved — this row is the current figure.) |
+| Ruff | **75** findings, down from 78. Lint is `continue-on-error` (I4). |
+
 ~~Branch `phase1/scraper-reliability`, 9 commits ahead.~~ **Merged to `main`**
-on 2026-08-22 (plus two later commits). CI run 20 green, 328 tests pass. The
-commit list below is kept for provenance.
+on 2026-08-22. The commit list below is kept for provenance.
 
 ```
 b273ae2  Mark Phases 1-4 complete in the backlog
@@ -67,7 +124,8 @@ maintainer's machine and there is no system Python:
 
 ```bash
 uv venv --python 3.11 .venv          # matches CI
-uv pip install --python .venv/Scripts/python.exe -r requirements.txt pytest ruff
+uv pip install --python .venv/Scripts/python.exe -r requirements.lock
+uv pip install --python .venv/Scripts/python.exe pytest ruff
 .venv/Scripts/python.exe -m playwright install chromium
 # then, for NBP or any WAF-blocked CB:  set PLAYWRIGHT_HEADLESS=0
 ```
@@ -76,12 +134,17 @@ Original POSIX instructions:
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
+.venv/bin/pip install -r requirements.lock
 .venv/bin/playwright install chromium
 cp .env.example .env    # ANTHROPIC_API_KEY, GEMINI_API_KEY, DEEPSEEK_API_KEY
                         # OPENAI_API_KEY only if running a bake-off with the GPT candidate
-.venv/bin/python -m pytest tests/ -m "not network"   # expect 322 passed, 1 skipped
+.venv/bin/python -m pytest tests/ -m "not network"   # 336 on main, 423 on calendar/dead-parsers
 ```
+
+Install from **`requirements.lock`**, not `requirements.txt` — the floors in
+the latter are what let `anthropic` 1.0.0 into production and silently disable
+the Claude scorer (I1). CI installs the lock too, so all three environments
+now resolve identically.
 
 `scripts/update.py` **hard-exits at import** if not run from inside `.venv`.
 That is why pure logic lives in `src/pipeline_health.py` — anything testable
@@ -91,9 +154,23 @@ belongs in `src/`, not `scripts/`.
 
 ## 2. Do these in order
 
-The first two are ordered dependencies. Everything after is independent.
+**§2.1–2.5 are done** (see the banner). What is live for you is **§2.0 then
+§2.6** — merge the calendar branch, then verify its parsers against the real
+pages. The rest is kept for provenance.
 
-### 2.1 Merge the branch
+### 2.0 ▶ Merge `calendar/dead-parsers` — START HERE
+
+Three commits, CI runs 24–26 green, 423 tests, **zero data files touched**.
+Nothing in D9 or D10 is live until this lands.
+
+```bash
+git fetch origin
+git checkout main && git merge --no-ff origin/calendar/dead-parsers
+```
+
+Ordinary fast merge — it branches from `f3c1145` and touches no parquet.
+
+### 2.1 Merge the branch <sub>(done 2026-08-22)</sub>
 
 Nine commits, CI green, **zero production data files touched** (deliberately —
 see the trap in §3.1).
@@ -171,6 +248,37 @@ reverts that file re-opens closed issues (tracked as I2).
 | #10 NBP, #12 SNB | Close once §2.3 / §2.4 land |
 | #14 | Close once NBP is backfilled |
 
+### 2.6 ▶ Verify the six repaired calendar parsers, then let them store dates
+
+The one piece of D9 that a cloud session could not finish. The parsers were
+written against captured pages, so they are proven against a **snapshot**, not
+against what the sites serve today.
+
+```bash
+.venv/Scripts/python.exe scripts/refresh_calendars.py --dry-run
+```
+
+Check the output against the per-CB table at the top of *Outstanding work* in
+[`BACKLOG.md`](BACKLOG.md) — it lists every date each parser produced from the
+fixtures. Then drop `--dry-run` to store them.
+
+What to expect, and how to read it:
+
+- **Six fetchers should now return dates**; before this they returned nothing.
+  A count roughly matching the CB's meetings-per-year is the signal.
+- **BOI will still return nothing** — that is I9, a WAF block, and it now says
+  so explicitly instead of looking like a parse failure.
+- **NBP needs `PLAYWRIGHT_HEADLESS=0`** and a display, as before.
+- **The script now exits non-zero** when a fetcher returns nothing usable
+  (D10). NBP and BOI are on an expected-blocked list and do *not* fail the run.
+- If a parser disagrees with the table, **the live page has changed since the
+  fixture was captured** — recapture into `tests/fixtures/calendars/` and the
+  existing tests will tell you exactly which assertion moved.
+
+> **Do not hand-edit `forward_dates.json` to make it match.** `_merge_dates`
+> is append/upgrade-only (trap 3.3), so anything wrong you add is permanent.
+> Fix the parser and re-run.
+
 ---
 
 ## 3. Traps specific to this repo
@@ -224,6 +332,38 @@ that column describes what would happen *if* the site changed. Read the
 **Status today** column for actual breakage. This distinction was previously
 misreported and made the pipeline look far worse than it is.
 
+### 3.7 On a calendar page, the wrong column looks exactly like the right one
+
+The most dangerous thing about D9 was not the six dead parsers — it was how
+easy the wrong fix was. Every one of these pages prints minutes, report or
+second-board dates in the same format, in the table right next to the
+decisions. Nothing distinguishes them to a regex.
+
+Simply making the old patterns match again would have written, as if they were
+rate decisions:
+
+- ~14 CBRT minutes and Inflation/Financial-Stability Report dates
+- up to 8 RBA **Payments System Board** dates a year — a different board that
+  sets no rate
+- 7 BOT minutes and report dates, three of them in 2027
+- 5 FED minutes-release dates per year ("Released May 20, 2026")
+
+The calendar drives the missing-meeting check, so each of those becomes a
+recurring false alarm on a date no meeting was ever scheduled for — and
+`_merge_dates` never deletes, so they would be permanent.
+
+**So: select the decision column by header name, never by scanning cells.** And
+when you write the test, assert the neighbouring dates are *not* produced —
+then confirm those dates really are on the page, or the assertion proves
+nothing. Two more of the same family, both pinned by tests:
+
+- A **FED asterisk** marks a Summary of Economic Projections, **not** a
+  cancellation. The old docstring said the opposite; believing it drops four of
+  the eight meetings a year, all of them press-conference meetings.
+- The **ECB** page has a Day-1 entry with no `(Day 1)` label (11/10/2028), so
+  filtering on the label invents a meeting. The parser takes the last day of
+  each consecutive run instead, which does not depend on labelling.
+
 ---
 
 ## 4. Remaining work
@@ -238,9 +378,17 @@ it is newly unblocked.**
 
 R8: capture one real HTML/PDF listing page per CB into `tests/fixtures/`, and
 add parser regression tests asserting `discover_urls()` finds ≥1 ref and
-`fetch_text()` returns non-empty. No fixtures exist today, which is why R9 is
-blocked: **changing selectors blind is worse than leaving them
-detected-but-manual.**
+`fetch_text()` returns non-empty. **Partly started:** eight fixtures exist —
+`tests/fixtures/nbp_schedule_2026.html` and seven **calendar** pages under
+`tests/fixtures/calendars/` — and D9 proved the approach works, since all six
+parsers were repaired offline from them alone. But those are *calendar* pages;
+R8 proper wants the **statement listing** page per CB, which is a different
+page for every one of the 23. R9 stays blocked until they exist: **changing
+selectors blind is worse than leaving them detected-but-manual.**
+
+When you capture them, keep the D9 shape — split parsing from fetching into a
+pure `parse_*(html, today)` so the test needs no network, and read trap **3.7**
+first.
 
 R9: then harden the 12 single-path scrapers — BANXICO, BCB, BOK, BOT, CBC, CNB,
 ECB, MNB, NORGESBANK, RBA, RBI, SARB. Add layered discovery selectors and a
@@ -258,11 +406,19 @@ strategies collapse to one page inside a swallowing `try/except`.
 
 ### 4.2 R4: self-hosted runner
 
-Once §2.3 confirms a residential IP defeats Incapsula, a self-hosted runner on
-that machine permanently fixes all four WAF-exposed CBs (NBP, BCR, BCCH, BOI) at
-no recurring cost. Setup steps are in [`RUNBOOK.md`](RUNBOOK.md#self-hosted-runner-for-waf-blocked-cbs).
-Route only those four to it; keep the other 19 on hosted, and alert rather than
-silently skip if the runner is offline.
+~~Fixes all four WAF-exposed CBs.~~ **Scope is narrower than this document
+originally claimed** — see the first banner. What a runner actually buys:
+
+| CB | Does a runner help? |
+|---|---|
+| **NBP** | Yes, **but only with a real display** — headed Chromium plus stealth. A headless runner gets the Incapsula challenge. |
+| **BOI** | Its *calendar* page needs the same treatment (**I9**, found 2026-08-23). Its statement scraper is fine. |
+| **BCCH** | Untested — currently current, so the value is unproven. |
+| **BCR** | **No.** Hard-blocked by a ShieldSquare CAPTCHA that headed Chromium plus stealth does not defeat (**I7**). Needs a different answer entirely. |
+
+Setup steps are in [`RUNBOOK.md`](RUNBOOK.md#self-hosted-runner-for-waf-blocked-cbs).
+Route only the WAF CBs to it, keep the other 19 hosted, and alert rather than
+silently skip when the runner is offline.
 
 ### 4.3 Spend decisions — need the maintainer's explicit go-ahead
 
@@ -303,33 +459,50 @@ and have the other two call it — but get agreement first.
 
 ### 4.5 Smaller open bugs
 
-Each is a contained fix; see `BACKLOG.md` for evidence and severity.
+Each is a contained fix; `BACKLOG.md` has the evidence and severity. Items that
+were on this list and are now **fixed** — D3 (BOK's Sunday), D8/D9 (calendar
+parsers), D10, I1/I8 (lockfile), I3 (Claude scorer) — have been removed rather
+than struck through; the backlog keeps their history.
 
-- **B2/B3** — `build_methodology_data.py` isn't in the daily workflow, so
-  `methodology.json` drifts indefinitely; its input CSV was deleted so it takes
-  a skip branch and ships figures from a removed notebook (recoverable at
-  `b139b91^`).
+Safe to do without network, roughly in value order:
+
 - **B5** — `rbnz.py:187` catches only `RuntimeError`, so a Playwright timeout
-  bypasses the Wayback fallback entirely — unreachable for the most likely
-  failure.
-- **B7/B8/B9** — stray `gemini_thinking` rows in `sentences.parquet`;
-  `snapshot.json` built and never fetched, `v.json` written and never read;
-  `python-bcb` and `scikit-learn` declared but unused.
-- **D3** — BOK 2026-06-28 is a **Sunday** marked `confirmed: true`. The gap
-  check now ignores weekends, but BOK is manual-refresh only so it will never
-  self-correct. Delete the row.
+  bypasses the Wayback fallback entirely. The fallback exists but is
+  unreachable for the most likely failure. Small, worth a test.
+- **B6** — `fed.py:92-93,108-113` illusory redundancy: `skip_historical` is
+  always True on daily runs, so three discovery strategies collapse to one page
+  inside a swallowing `try/except`. **Same shape as D9** — something that looks
+  layered but has exactly one live path — so the D9 approach applies directly.
+- **B10** — BCR's listing discovery returns 0 refs across 67 pages and is
+  masked by the calendar probe keeping discovery non-zero. Illusory redundancy
+  again, and detection cannot fire.
+- **B2/B3** — `build_methodology_data.py` is not in the daily workflow so
+  `methodology.json` drifts; its input CSV was deleted, so it takes a skip
+  branch and ships figures from a removed notebook. CSV recoverable at
+  `b139b91^`, which works offline.
+- **B8** — `snapshot.json` built every run and never fetched; `v.json` written
+  and never read (`app.js` cache-busts with `Date.now()`).
+- **B9** — `python-bcb` and `scikit-learn` declared but unused. Dropping them
+  means regenerating the lock:
+  `uv pip compile requirements.txt --universal --python-version 3.11 -o requirements.lock`.
+- **I4** — 75 ruff findings, many mechanical `B904` (`raise ... from err`).
+  Lint is `continue-on-error`, so this is safe chipping — keep it separate from
+  behaviour changes.
+
+Needs your machine or your decision:
+
 - **D4** — BCR's calendar is **0 of 7 confirmed** while its WAF bypass probe
-  depends on those dates. Transcribe the real ones from
+  depends on those dates. Transcribe from
   <https://www.banrep.gov.co/es/calendario-junta-directiva>.
-- **D5** — ⏰ **Calendar horizon ends 2026-12-23.** From November, 15 CBs fall
-  below two future meetings, at which point the probe fallback and the gap check
-  both become silent no-ops. `scripts/check_calendar_health.py` warns ahead of
-  it. This one has a deadline.
-- **I1** — `requirements.txt` is all floors with no lockfile, re-resolved
-  against PyPI latest on every daily run. Now that CI installs the same tree, CI
-  will catch a breaking release first — but a lockfile is the real fix.
-- **I3** — Claude scorer errored once on the 2026-08-21 run (counter 1 of 3).
-  Below threshold, but worth watching.
+- **D5** — no longer a deadline, but **not closed**: the repaired parsers read
+  years past the old 2026-12-23 cliff and only need §2.6's live run to store
+  them.
+- **I2** — alert dedupe state lives in a git-committed file, so a revert
+  re-opens closed issues. Cause of the duplicate BCR issues in §2.5.
+- **I9** — BOI's calendar page is a Radware challenge (see the banner). Wants
+  R4's runner with a display, like NBP.
+- **B7** — stray `gemini_thinking` rows in `sentences.parquet`. **Touches
+  `data/scored/`, so it is a machine-only job** (trap 3.1).
 
 ---
 
@@ -345,40 +518,51 @@ Each is a contained fix; see `BACKLOG.md` for evidence and severity.
   data, check CI, check the live page.
 - Run `.venv/bin/python -m pytest tests/ -m "not network"` and
   `.venv/bin/ruff check src/ scripts/ tests/` before pushing. Lint is
-  `continue-on-error` in CI until the ~79 pre-existing findings clear (I4), so
+  `continue-on-error` in CI until the 75 pre-existing findings clear (I4), so
   it will not block you — but don't add to the pile.
 
 ---
 
 ## 6. Kickoff prompt
 
-Paste this into a fresh Claude session in Cursor with the repo open.
+Paste this into a fresh Claude session in Cursor with the repo open. **Updated
+2026-08-23** — the previous version pointed at §2.1–2.5, which are done.
 
 ```
 You're picking up the cb_sentiment_project pipeline. Read docs/HANDOFF.md
 first, then docs/BACKLOG.md — HANDOFF has the ordering and the traps, BACKLOG
-is the full inventory of open issues.
+is the full inventory of open issues. Read both banners at the top of HANDOFF
+before trusting the body: several of its original diagnoses turned out wrong
+and are corrected there.
 
-Important context: previous sessions ran in a cloud container with no network
-access to central-bank websites and no API keys. You're on the maintainer's
-machine, so several blocked items are now actionable. Section 3 of HANDOFF
-lists traps that have each caused a real incident — read them before touching
-the relevant area.
+You're on the maintainer's Windows machine with network, a display and API
+keys, so use .venv\Scripts\python.exe and install from requirements.lock.
+Cloud sessions could not reach central-bank sites, which is why some work is
+snapshot-verified rather than live-verified.
 
-Start with HANDOFF section 2, in order:
-  2.1 merge phase1/scraper-reliability (NOT the claude/cbrt-* branch)
-  2.2 run scripts/migrate_add_versioning.py once on main, commit immediately
-  2.3 backfill NBP locally — this is the one real outage
-  2.4 confirm SNB and BCR recovered
-  2.5 close the stale GitHub issues
+Two things are waiting:
+  2.0 merge the calendar/dead-parsers branch — three commits, CI green, not
+      on main yet, so none of it is live
+  2.6 run `scripts/refresh_calendars.py --dry-run` and check the output
+      against the per-CB table in BACKLOG.md's "Outstanding work", then drop
+      --dry-run to store the dates. This is the live confirmation the cloud
+      session could not do, and it closes D5.
 
 Then propose a plan for section 4 and check with me before starting. Do not
-run anything that costs money (section 4.3) without asking first.
+run anything that costs money (section 4.3) without asking first, and do not
+touch data/scored/ (trap 3.1) or D2.
 
-Two standing rules:
+Section 3 lists traps that have each caused a real incident. 3.7 is the newest
+and the least obvious: on a calendar page the wrong column is indistinguishable
+from the right one, and the naive fix silently invents meetings.
+
+Three standing rules:
 - Verify against reality, not intent. Several bugs here survived because a fix
   was deployed and never confirmed to have taken effect — check the data,
   check CI's actual conclusion, check the live page.
+- Never delete a date from forward_dates.json to fix it. _merge_dates is
+  append/upgrade-only, so a working fetcher re-adds it next month. Fix the
+  fetcher.
 - Add anything you find to docs/BACKLOG.md immediately, even if you don't fix
   it, and move fixed items to "Fixed this cycle" with a note on why it
   mattered.
