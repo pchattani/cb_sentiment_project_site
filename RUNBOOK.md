@@ -243,12 +243,19 @@ NBP, BCR, BCCH and BOI sit behind Incapsula/ShieldSquare, which block GitHub's
 datacenter IP ranges. A runner on a residential connection removes the problem
 for all four at once, with no recurring cost.
 
-1. Repo → Settings → Actions → Runners → **New self-hosted runner**; follow the
-   platform instructions.
-2. Install it as a service so it survives reboot
-   (`./svc.sh install && ./svc.sh start`).
-3. Provide the same secrets the hosted job uses.
-4. Confirm it appears **Idle** in the runners list.
+**Done — see [`SELF_HOSTED_RUNNER.md`](SELF_HOSTED_RUNNER.md)** for the full
+procedure, including standing one up on a different machine.
+
+> ⚠️ The instructions that used to be here said to install it as a service
+> (`./svc.sh install`). That is Linux syntax, and the wrong model besides: a
+> Windows service runs in session 0 with no desktop, and NBP needs *headed*
+> Chromium, so such a runner fails in exactly the way the hosted runner does.
+> It runs interactively from a scheduled task at logon instead.
+
+The runner `premm-desktop` is registered with labels `waf, windows-desktop`, and
+`waf_update.yml` routes NBP, BOI and BCCH to it daily at 14:00 UTC. Measured on
+the first green run: the hosted job discovers **0** NBP statements, this one
+discovers **296**.
 
 The workflow then routes only the WAF-sensitive CBs to it and alerts — rather
 than silently skipping — if the runner is offline.
