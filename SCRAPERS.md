@@ -49,42 +49,40 @@ Alerts are raised by `scripts/alert.py` as GitHub issues, deduped through
 ## The matrix
 
 <!-- BEGIN GENERATED MATRIX -->
-*Data as of 2026-09-17.* **22 of 23 central banks current.** Stale: BCR.
+*Data as of 2026-09-22.* **22 of 22 central banks current.**
 
 > The **Resilience** and **Known risk** columns describe *posture* — what would happen **if** a site changed — not current breakage. A CB marked "Manual fix required" is working fine; it simply has one discovery path. Read the **Status today** column for what is actually broken.
 
-**Detection is guaranteed for all 23 central banks.** The per-CB discovery counter fires after 3 consecutive runs (~3 days) whether or not a meeting was due, so no scraper can fail silently. The columns below describe what happens *after* detection.
+**Detection is guaranteed for all 22 central banks.** The per-CB discovery counter fires after 3 consecutive runs (~3 days) whether or not a meeting was due, so no scraper can fail silently. The columns below describe what happens *after* detection.
 
-- **Self-healing (4):** BCR, FED, NBP, SNB — a calendar probe reconstructs statement URLs from the meeting date, so these recover from a site redesign without code changes.
-- **Manual fix required (12):** BANXICO, BCB, BOK, BOT, CBC, CNB, ECB, MNB, NORGESBANK, RBA, RBI, SARB — a single discovery path. Breakage is detected in ~3 days but a human must repair the selector or URL pattern.
-- **No missing-meeting check (1):** BCR — the calendar holds no confirmed dates, so gaps are caught only by the discovery counter and the interval backstop.
-- **WAF-exposed (4):** BCCH, BCR, BOI, NBP — these sites block datacenter IPs, so they can fail on GitHub-hosted runners while working fine elsewhere. **Not currently mitigated:** the self-hosted runner is R4, still outstanding, and NBP needs a real display on top of it. Each of these needs a local headed run when it fails.
+- **Self-healing (9):** BCB, CNB, FED, MNB, NBP, NORGESBANK, RBA, SARB, SNB — a calendar probe reconstructs statement URLs from the meeting date, so these recover from a site redesign without code changes.
+- **Manual fix required (6):** BANXICO, BOK, BOT, CBC, ECB, RBI — a single discovery path. Breakage is detected in ~3 days but a human must repair the selector or URL pattern.
+- **WAF-exposed (3):** BCCH, BOI, NBP — these sites block datacenter IPs, so they can fail on GitHub-hosted runners while working fine elsewhere. **Not currently mitigated:** the self-hosted runner is R4, still outstanding, and NBP needs a real display on top of it. Each of these needs a local headed run when it fails.
 
 | CB | Status today | Transport | Probe | Other fallback | Calendar confirmed | Meeting check | Detect | Resilience | Known risk |
 |---|---|---|---|---|---|---|---|---|---|
-| **BANXICO** | current (46d) | requests | — | — | 8/8 | yes | 3 runs | Manual fix required | — |
-| **BCB** | current (5d) | JSON API | — | — | 1/8 | yes | 3 runs | Manual fix required | calendar mostly estimated |
-| **BCCH** | current (13d) | Playwright | — | 11 URL-slug candidates + doc page | 8/8 | yes | 3 runs | Partial fallback | WAF blocks CI IPs |
-| **BCR** | **STALE 82d** | Playwright | yes | — | 0/7 | no | 3 runs | Self-healing (probe) | WAF blocks CI IPs; calendar all estimated |
-| **BOC** | current (19d) | requests | — | dual listing + archive | 8/8 | yes | 3 runs | Partial fallback | — |
-| **BOE** | current (4d) | requests | — | pure URL enumeration | 8/16 | yes | 3 runs | Partial fallback | — |
-| **BOI** | current (20d) | Playwright | — | Playwright fetch retry | 8/8 | yes | 3 runs | Partial fallback | WAF blocks CI IPs |
-| **BOK** | current (25d) | requests | — | — | 4/7 | yes | 3 runs | Manual fix required | — |
-| **BOT** | current (26d) | Playwright | — | — | 6/6 | yes | 3 runs | Manual fix required | — |
-| **CBC** | current (4d) | requests | — | — | 4/4 | yes | 3 runs | Manual fix required | — |
-| **CBRT** | current (4d) | requests | — | ANO URL pattern | 12/12 | yes | 3 runs | Partial fallback | — |
-| **CNB** | current (4d) | Playwright | — | — | 8/8 | yes | 3 runs | Manual fix required | — |
-| **ECB** | current (11d) | requests | — | — | 24/24 | yes | 3 runs | Manual fix required | — |
-| **FED** | current (5d) | requests | yes | URL probing (historical path only) | 18/18 | yes | 3 runs | Self-healing (probe) | — |
-| **MNB** | current (27d) | requests | — | — | 12/12 | yes | 3 runs | Manual fix required | — |
-| **NBP** | current (12d) | Playwright | yes | — | 11/11 | yes | 3 runs | Self-healing (probe) | WAF blocks CI IPs |
-| **NORGESBANK** | current (39d) | JSON API | — | — | 8/8 | yes | 3 runs | Manual fix required | — |
-| **RBA** | current (41d) | requests | — | — | 16/16 | yes | 3 runs | Manual fix required | — |
-| **RBI** | current (47d) | ASP.NET POST | — | — | 5/5 | yes | 3 runs | Manual fix required | — |
-| **RBNZ** | current (19d) | Playwright | — | Wayback CDX (fetch only) | 6/7 | yes | 3 runs | Partial fallback | — |
-| **RIKSBANK** | current (32d) | requests | — | alternate selector (same page) | 11/13 | yes | 3 runs | Partial fallback | — |
-| **SARB** | current (60d) | Playwright | — | — | 2/6 | yes | 3 runs | Manual fix required | calendar mostly estimated |
-| **SNB** | current (95d) | requests | yes | — | 1/4 | yes | 3 runs | Self-healing (probe) | calendar mostly estimated |
+| **BANXICO** | current (48d) | requests | — | — | 8/8 | yes | 3 runs | Manual fix required | — |
+| **BCB** | current (7d) | JSON API | yes | — | 1/8 | yes | 3 runs | Self-healing (probe) | calendar mostly estimated |
+| **BCCH** | current (15d) | Playwright | — | 11 URL-slug candidates + doc page | 8/8 | yes | 3 runs | Partial fallback | WAF blocks CI IPs |
+| **BOC** | current (21d) | requests | — | dual listing + archive | 8/8 | yes | 3 runs | Partial fallback | — |
+| **BOE** | current (6d) | requests | — | pure URL enumeration | 16/16 | yes | 3 runs | Partial fallback | — |
+| **BOI** | current (22d) | Playwright | — | Playwright fetch retry | 8/8 | yes | 3 runs | Partial fallback | WAF blocks CI IPs |
+| **BOK** | current (27d) | requests | — | — | 4/7 | yes | 3 runs | Manual fix required | — |
+| **BOT** | current (28d) | Playwright | — | — | 6/6 | yes | 3 runs | Manual fix required | — |
+| **CBC** | current (6d) | requests | — | — | 4/4 | yes | 3 runs | Manual fix required | — |
+| **CBRT** | current (6d) | requests | — | ANO URL pattern | 12/12 | yes | 3 runs | Partial fallback | — |
+| **CNB** | current (6d) | Playwright | yes | — | 8/8 | yes | 3 runs | Self-healing (probe) | — |
+| **ECB** | current (13d) | requests | — | — | 24/24 | yes | 3 runs | Manual fix required | — |
+| **FED** | current (7d) | requests | yes | URL probing (historical path only) | 18/18 | yes | 3 runs | Self-healing (probe) | — |
+| **MNB** | current (1d) | requests | yes | — | 12/12 | yes | 3 runs | Self-healing (probe) | — |
+| **NBP** | current (14d) | Playwright | yes | — | 11/11 | yes | 3 runs | Self-healing (probe) | WAF blocks CI IPs |
+| **NORGESBANK** | current (41d) | JSON API | yes | — | 8/8 | yes | 3 runs | Self-healing (probe) | — |
+| **RBA** | current (43d) | requests | yes | — | 16/16 | yes | 3 runs | Self-healing (probe) | — |
+| **RBI** | current (49d) | ASP.NET POST | — | — | 6/6 | yes | 3 runs | Manual fix required | — |
+| **RBNZ** | current (21d) | Playwright | — | Wayback CDX (fetch only) | 6/7 | yes | 3 runs | Partial fallback | — |
+| **RIKSBANK** | current (34d) | requests | — | alternate selector (same page) | 11/13 | yes | 3 runs | Partial fallback | — |
+| **SARB** | current (62d) | Playwright | yes | — | 2/6 | yes | 3 runs | Self-healing (probe) | calendar mostly estimated |
+| **SNB** | current (97d) | requests | yes | — | 1/4 | yes | 3 runs | Self-healing (probe) | calendar mostly estimated |
 <!-- END GENERATED MATRIX -->
 
 ## Column meanings
