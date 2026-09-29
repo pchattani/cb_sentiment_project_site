@@ -29,8 +29,8 @@
     <div class="d-flex justify-content-between align-items-center py-3">
       <div>
         <h1 class="site-title">The CB Sentiment Project</h1>
-        <p class="site-sub">LLM-scored hawkish/dovish stance for 23 central banks &middot; sentence-level &minus;10→+10 scale &middot; 3-model ensemble (Claude · Gemini · DeepSeek)</p>
-        <p class="site-sub2">DM: USD CAD | EUR GBP SEK NOK CHF | AUD NZD &nbsp;&middot;&nbsp; EM: CZK HUF PLN | INR KRW TWD THB | MXN BRL CLP COP | TRY ILS ZAR</p>
+        <p class="site-sub">LLM-scored hawkish/dovish stance for 22 central banks &middot; sentence-level &minus;10→+10 scale &middot; 3-model ensemble (Claude · Gemini · DeepSeek)</p>
+        <p class="site-sub2">DM: USD CAD | EUR GBP SEK NOK CHF | AUD NZD &nbsp;&middot;&nbsp; EM: CZK HUF PLN | INR KRW TWD THB | MXN BRL CLP | TRY ILS ZAR</p>
       </div>
       <div class="text-end">
         <span id="last-updated" class="badge-updated"></span>
@@ -65,7 +65,7 @@
   <!-- Project description banner -->
   <div style="background:linear-gradient(135deg,#1a2332 0%,#1e2a3a 100%);border:1px solid #30363d;border-left:4px solid #58a6ff;border-radius:6px;padding:20px 24px;margin-top:16px;margin-bottom:4px">
     <p style="font-size:1rem;color:#e6edf3;line-height:1.75;margin:0 0 10px 0">
-      <strong style="color:#58a6ff;font-size:1.05rem">The CB Sentiment Project</strong> scores the hawkish/dovish stance of 23 central banks using a
+      <strong style="color:#58a6ff;font-size:1.05rem">The CB Sentiment Project</strong> scores the hawkish/dovish stance of 22 central banks using a
       3-model LLM ensemble (Claude · Gemini · DeepSeek). Each official monetary policy statement is
       broken into sentences and scored on a continuous <strong style="color:#e6edf3">&minus;10 (hawkish) to +10 (dovish)</strong>
       scale; the document score is the sentence-level mean. The 3-model ensemble reduces single-model noise.
@@ -75,7 +75,7 @@
       CB's stance — not where sentiment is, but how quickly and in which direction it is moving.
       Computed on normalized meeting-to-meeting changes over several overlapping lookback windows,
       capped on a <strong style="color:#e6edf3">&minus;2 (hawkish) to +2 (dovish)</strong> scale,
-      with an empirical <strong style="color:#e6edf3">half-life of&nbsp;&approx;&nbsp;6 months</strong>.
+      with an empirical <strong style="color:#e6edf3">half-life of&nbsp;&approx;&nbsp;4 months</strong>.
       All group and aggregate charts show data from <strong style="color:#e6edf3">2005 onwards</strong>.
     </p>
     <p style="font-size:0.88rem;color:#8b949e;line-height:1.6;margin:0">
@@ -224,10 +224,10 @@
   <div class="prose-dark mt-4">
 
     <h3>Overview</h3>
-    <p>The CB Sentiment Project measures the hawkish or dovish stance of 23 central banks by scoring official monetary policy statements with a 3-model LLM ensemble. Each statement is split into sentences; each sentence is scored on a continuous <strong>&minus;10 (strongly hawkish)</strong> to <strong>+10 (strongly dovish)</strong> scale; the document score is the sentence-level ensemble mean. Sentence-level scoring is a deliberate design choice: a single policy statement routinely mixes inflation concern, growth risk, and forward guidance in different proportions. Document-level scoring collapses this structure; sentence-level scoring preserves it.</p>
+    <p>The CB Sentiment Project measures the hawkish or dovish stance of 22 central banks by scoring official monetary policy statements with a 3-model LLM ensemble. Each statement is split into sentences; each sentence is scored on a continuous <strong>&minus;10 (strongly hawkish)</strong> to <strong>+10 (strongly dovish)</strong> scale; the document score is the sentence-level ensemble mean. Sentence-level scoring is a deliberate design choice: a single policy statement routinely mixes inflation concern, growth risk, and forward guidance in different proportions. Document-level scoring collapses this structure; sentence-level scoring preserves it.</p>
 
     <h3>Data Coverage</h3>
-    <p>More than 4,500 statements across 23 central banks are scored. Banks were selected on three criteria: <strong>market relevance</strong> (the currency matters for global FX and fixed-income markets), <strong>policy independence</strong> (the bank sets rates or financial conditions autonomously, not via a peg or mandate from another authority), and <strong>communication accessibility</strong>. Together the 23 banks cover currencies representing over 90% of global average daily FX turnover (BIS 2022 Triennial Survey).</p>
+    <p>More than 4,100 scored statements across 22 central banks, 1990 to the present. Banks were selected on three criteria: <strong>market relevance</strong> (the currency matters for global FX and fixed-income markets), <strong>policy independence</strong> (the bank sets rates or financial conditions autonomously, not via a peg or mandate from another authority), and <strong>communication accessibility</strong>. Together the 22 banks cover currencies representing over 90% of global average daily FX turnover (BIS 2022 Triennial Survey).</p>
     <p>The most notable exclusion is the Bank of Japan (JPY, ~17% of FX turnover). The transition from yield curve control to conventional rate targeting in 2024 creates a regime break that makes pre- and post-transition scores incomparable on a single scale. Other exclusions: currency boards (HKMA), exchange-rate targeters (MAS), and banks with no accessible English-language statement archive (PBOC).</p>
 
 
@@ -242,7 +242,8 @@
       <strong style="color:var(--text2)">Excluded:</strong>
       PBOC/CNY (~7%) — state-directed communication, no accessible English MPC statements &nbsp;|&nbsp;
       HKMA/HKD (~3%) — currency board, USD peg &nbsp;|&nbsp;
-      MAS/SGD (~2%) — exchange-rate targeting (NEER band), not rate decisions    </p>
+      MAS/SGD (~2%) — exchange-rate targeting (NEER band), not rate decisions &nbsp;|&nbsp;
+        BCR/COP (~0.4%) — discontinued September 2026: the site's CAPTCHA could not be cleared from anywhere, and a series that cannot be kept current is not published; its 2007–2026 history is retained offline    </p>
 
     <h3>Scoring Scale</h3>
     <p>The scale runs from &minus;10 (strongly hawkish) to +10 (strongly dovish), with 0 representing a fully neutral stance. In practice, empirical scores for most central banks cluster in a narrower range reflecting the measured communication style of monetary policymakers, but the full scale is available to represent extreme episodes.</p>
@@ -269,7 +270,7 @@
     <h3>Models</h3>
 
     <h4>Model Selection</h4>
-    <p>Selecting models for ensemble scoring involved two filtering stages. The initial pool of frontier LLMs was narrowed based on API maturity, cost at scale, and suitability for structured JSON output across 23 central banks in multiple languages. This produced a shortlist of four models that were then run on a shared validation sample to measure cross-model agreement empirically.</p>
+    <p>Selecting models for ensemble scoring involved two filtering stages. The initial pool of frontier LLMs was narrowed based on API maturity, cost at scale, and suitability for structured JSON output across 22 central banks in multiple languages. This produced a shortlist of four models that were then run on a shared validation sample to measure cross-model agreement empirically.</p>
 
     <style>
       .rating { font-size: 0.85rem; letter-spacing: 1px; }
@@ -396,7 +397,7 @@
         <tr><td><span style="color:#60a5fa">DeepSeek</span></td><td>DeepSeek AI</td><td>Strong chain-of-thought reasoning on structured policy text</td></tr>
       </tbody>
     </table>
-    <p>Each model receives the same structured prompt asking it to assess whether a sentence signals hawkish or dovish monetary policy intent. The prompt requires a numeric score <em>and</em> a brief textual justification — forcing the model to reason through the sentence before committing to a number, which measurably reduces score randomness compared to prompts that ask for numbers alone. All 23 central banks use an identical prompt framing, ensuring cross-CB comparability regardless of communication style or language register.</p>
+    <p>Each model receives the same structured prompt asking it to assess whether a sentence signals hawkish or dovish monetary policy intent. The prompt asks for an integer score per sentence, or <code>null</code> where a sentence carries no monetary-policy signal, and nothing else; the models are called at temperature 0 so a re-score reproduces the published number. All 22 central banks use an identical prompt framing, ensuring cross-CB comparability regardless of communication style or language register.</p>
 
     <h3>Ensemble Construction</h3>
     <p>Aggregation is bottom-up, operating at the sentence level. Each model scores each sentence independently with no cross-model communication. Sentences from different models are matched by normalized text — identical surface strings across models are treated as the same sentence. For each matched sentence, the ensemble score is the mean of the non-null model scores for that sentence. The document score is then the mean of all sentence ensemble scores.</p>
@@ -412,7 +413,7 @@
     <p>Statements are scraped directly from official central bank websites. Pre-processing steps:</p>
     <ol>
       <li>Remove boilerplate (headers, footers, legal disclaimers, contact info)</li>
-      <li>Split into sentences using standard tokenization</li>
+      <li>The model itself segments the statement into sentences as part of scoring; very long statements are sent in chunks and the sentence lists are stitched back together</li>
       <li>Score each sentence independently; the model prompt instructs each model to return null for non-substantive content (dates, citations, procedural headers, legal boilerplate) rather than forcing a score</li>
     </ol>
     <p>PDF documents (older statements) are extracted with column-aware word ordering to handle two-column press release layouts.</p>
@@ -421,7 +422,7 @@
     <p>Raw document scores are resampled to monthly end-of-month frequency. Group and aggregate index charts apply a 3-month rolling average to reduce meeting-cycle noise without losing cycle-turning-point responsiveness. Individual CB charts display raw meeting scores as dots, with a 3-month rolling average overlaid as a line.</p>
 
     <h3>Momentum Indicator</h3>
-    <p>The momentum indicator measures the speed and direction of change in each CB's stance — not where sentiment is, but how quickly and in which direction it is moving. It is computed on normalized, meeting-to-meeting score changes over several overlapping lookback windows, then capped on a &minus;2 (hawkish) to +2 (dovish) scale. The multi-window construction with per-CB normalization makes the indicator scale-invariant: a momentum reading of +1.0 means the same thing for a historically volatile CB as for a historically stable one. The half-life of the indicator is approximately 6 months.</p>
+    <p>The momentum indicator measures the speed and direction of change in each CB's stance — not where sentiment is, but how quickly and in which direction it is moving. It is computed on normalized, meeting-to-meeting score changes over several overlapping lookback windows, then capped on a &minus;2 (hawkish) to +2 (dovish) scale. The multi-window construction with per-CB normalization makes the indicator scale-invariant: a momentum reading of +1.0 means the same thing for a historically volatile CB as for a historically stable one. Measured on the published data, the monthly reading has a half-life of about four months (AR(1) fit, median across central banks; interquartile range three to five).</p>
 
     <h3>How to Use the Dashboard</h3>
     <p><strong>Coverage table:</strong> Descriptive overview of each CB — currency ticker, BIS FX market share, and geographic region. Full coverage detail (statement counts, archive depth) is in the Data Coverage section above.</p>
@@ -575,7 +576,7 @@
 
   <div class="section-header" style="border-top-color:#4ade80">2. Regional Patterns &amp; Divergence</div>
   <div class="prose-dark">
-    <p>DM banks are more tightly synchronized than EM. Within DM, NA and Europe move in near-lockstep during policy cycles — 5-year pairwise correlations run 0.7–0.9. LATAM banks (BRL, CLP, COP, MXN) led the 2021 tightening by roughly two quarters ahead of the FED and ECB, reacting earlier to commodity and currency-driven inflation. Several EMEA banks (CZK, HUF, PLN) followed a similar early-mover pattern.</p>
+    <p>DM banks are more tightly synchronized than EM. Within DM, NA and Europe move in near-lockstep during policy cycles — 5-year pairwise correlations run 0.7–0.9. LATAM banks (BRL, CLP, MXN) led the 2021 tightening by roughly two quarters ahead of the FED and ECB, reacting earlier to commodity and currency-driven inflation. Several EMEA banks (CZK, HUF, PLN) followed a similar early-mover pattern.</p>
   </div>
   <div class="row g-3 mt-1 mb-3">
     <div class="col-lg-7 col-12">
