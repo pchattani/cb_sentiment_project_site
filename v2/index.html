@@ -1,0 +1,789 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Policy Tone Terminal</title>
+<!-- Candidate replacement for the v1 dashboard. Reads ../data/tone.json, which
+     scripts/build_tone_bundle.py emits from what build_site.py already
+     publishes, so nothing in the scoring pipeline changes. Not linked from the
+     live site until it is adopted. -->
+</head>
+<body>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+
+<style>
+/* Layout: sticky command bar over a stat strip, then a sortable cross-section
+   grid as the centre of gravity, with charts below it. Dark-first — this is a
+   monitoring surface, read for long stretches. */
+:root {
+  /* ink + surface: neutrals carry a slight blue bias toward the dovish pole */
+  --bg:        #0d1117;
+  --surface:   #141a22;
+  --surface-2: #1a212b;
+  --line:      #242d3a;
+  --line-soft: #1b222c;
+  --fg:        #e8edf4;
+  --fg-2:      #9fb0c4;
+  --fg-3:      #65758b;
+
+  /* diverging: the policy axis. red = hawkish (−), blue = dovish (+) */
+  --hawk:      #e66767;
+  --hawk-dim:  #8f3c3c;
+  --dove:      #3987e5;
+  --dove-dim:  #2a5a92;
+  --mid:       #383835;
+
+  /* categorical: aggregates only (Global / DM / EM / regions) */
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181;
+
+  /* status */
+  --ok: #0ca30c; --warn: #fab219; --crit: #d03b3b;
+
+  --accent: #4f9df0;
+  --radius: 10px;
+  --font: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #fbfcfd; --surface: #ffffff; --surface-2: #f3f6fa;
+    --line: #dde4ec; --line-soft: #eaeff5;
+    --fg: #0f1720; --fg-2: #46566a; --fg-3: #78889c;
+    --hawk: #cf3f3f; --hawk-dim: #efb4b4; --dove: #2a78d6; --dove-dim: #aecbee;
+    --mid: #e6e9ee;
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4;
+    --accent: #1f6fd0;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #fbfcfd; --surface: #ffffff; --surface-2: #f3f6fa;
+  --line: #dde4ec; --line-soft: #eaeff5;
+  --fg: #0f1720; --fg-2: #46566a; --fg-3: #78889c;
+  --hawk: #cf3f3f; --hawk-dim: #efb4b4; --dove: #2a78d6; --dove-dim: #aecbee;
+  --mid: #e6e9ee;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4;
+  --accent: #1f6fd0;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font-family: var(--font); font-size: 14px; line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap {
+  max-width: 1480px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 600; letter-spacing: -0.012em; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.eyebrow {
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--fg-3);
+}
+
+/* ── command bar ─────────────────────────────────────────────── */
+.bar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 40;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.bar-in {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding-block: 11px;
+}
+.brand { display: flex; align-items: baseline; gap: 9px; margin-right: auto; min-width: 0; }
+.brand b { font-size: 15px; font-weight: 700; letter-spacing: -0.02em; }
+.brand span { font-size: 11px; color: var(--fg-3); }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); flex: none; }
+.btn {
+  font: inherit; font-size: 12px; color: var(--fg-2); cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 7px; padding: 5px 11px;
+}
+.btn:hover { color: var(--fg); border-color: var(--fg-3); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ── stat strip ──────────────────────────────────────────────── */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 18px 0 20px; }
+.stat {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 13px 15px 14px; min-width: 0;
+}
+.stat .k { display: flex; align-items: baseline; gap: 8px; margin-top: 5px; }
+.stat .v { font-family: var(--mono); font-size: 25px; font-weight: 600; letter-spacing: -0.02em; }
+.stat .d { font-family: var(--mono); font-size: 12px; font-weight: 500; }
+.stat .sub { font-size: 11.5px; color: var(--fg-3); margin-top: 4px; }
+.up { color: var(--dove); } .down { color: var(--hawk); } .flat { color: var(--fg-3); }
+
+/* ── panels ──────────────────────────────────────────────────── */
+.panel {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); margin-bottom: 16px; overflow: hidden;
+}
+.phead {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 13px 15px; border-bottom: 1px solid var(--line-soft);
+}
+.phead h2 { font-size: 13.5px; }
+.phead .note { font-size: 11.5px; color: var(--fg-3); }
+.pbody { padding: 14px 15px 16px; }
+.spread { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+/* ── cross-section table ─────────────────────────────────────── */
+.tscroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+thead th {
+  position: sticky; top: 0; background: var(--surface); z-index: 2;
+  text-align: right; padding: 9px 10px; white-space: nowrap;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--fg-3); border-bottom: 1px solid var(--line); cursor: pointer; user-select: none;
+}
+thead th:first-child, tbody td:first-child { text-align: left; }
+thead th:hover { color: var(--fg); }
+thead th[aria-sort] { color: var(--fg); }
+thead th .ar { opacity: .55; font-size: 9px; }
+tbody td { padding: 7px 10px; text-align: right; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+tbody tr:hover { background: var(--surface-2); }
+tbody tr.sel { background: color-mix(in srgb, var(--accent) 13%, transparent); }
+tbody tr { cursor: pointer; }
+.cb { display: flex; align-items: center; gap: 9px; }
+.ccy { font-family: var(--mono); font-weight: 600; font-size: 12.5px; min-width: 42px; }
+.cbname { color: var(--fg-3); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; max-width: 190px; }
+.tier { font-size: 9.5px; padding: 1px 5px; border-radius: 4px; border: 1px solid var(--line); color: var(--fg-3); }
+
+/* diverging bar-in-cell: bar and figure sit side by side, never stacked,
+   so neither obscures the other at any value */
+.stance { display: inline-flex; align-items: center; gap: 9px; }
+.bic { position: relative; width: 84px; height: 15px; flex: none; }
+.bic .axis { position: absolute; left: 50%; top: -1px; bottom: -1px; width: 1px; background: var(--line); }
+.bic .fill { position: absolute; top: 2px; height: 11px; border-radius: 2px; }
+.stance .lab { font-family: var(--mono); font-size: 12px; min-width: 42px; text-align: right; }
+.pill { font-family: var(--mono); font-size: 11px; padding: 2px 6px; border-radius: 5px; border: 1px solid transparent; }
+.pill.h { color: var(--hawk); border-color: color-mix(in srgb, var(--hawk) 40%, transparent); }
+.pill.d { color: var(--dove); border-color: color-mix(in srgb, var(--dove) 40%, transparent); }
+.pill.n { color: var(--fg-3); border-color: var(--line); }
+.due { color: var(--warn); } .soon { color: var(--fg-2); }
+
+/* ── charts ──────────────────────────────────────────────────── */
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+.gl { stroke: var(--line-soft); stroke-width: 1; }
+.zl { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; }
+.ax { fill: var(--fg-3); font-family: var(--mono); font-size: 10px; }
+.lg { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--fg-2); align-items: center; }
+.lg i { width: 11px; height: 2.5px; border-radius: 2px; display: inline-block; margin-right: 6px; vertical-align: middle; }
+.lg b { font-weight: 500; }
+.tip {
+  position: fixed; pointer-events: none; z-index: 90; opacity: 0; transition: opacity .09s;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 10px; font-size: 12px; box-shadow: 0 10px 26px rgba(0,0,0,.4); max-width: 260px;
+}
+.tip .t { font-family: var(--mono); font-size: 10.5px; color: var(--fg-3); margin-bottom: 4px; }
+.tip .r { display: flex; justify-content: space-between; gap: 14px; }
+.tip .r b { font-family: var(--mono); font-weight: 600; }
+
+.foot { color: var(--fg-3); font-size: 11.5px; padding: 18px 0 28px; line-height: 1.6; }
+.foot a { color: var(--accent); }
+
+@media (max-width: 1080px) { .stats { grid-template-columns: repeat(2, 1fr); } .grid2 { grid-template-columns: 1fr; } }
+@media (max-width: 560px) {
+  .stats { grid-template-columns: 1fr; }
+  .cbname { display: none; }
+  .brand span { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="bar"><div class="wrap bar-in">
+  <div class="brand">
+    <span class="dot" id="live"></span>
+    <b>Policy Tone Terminal</b>
+    <span id="asof">loading…</span>
+  </div>
+  <button class="btn" id="scope-all"  aria-pressed="true">All 22</button>
+  <button class="btn" id="scope-dm"   aria-pressed="false">DM</button>
+  <button class="btn" id="scope-em"   aria-pressed="false">EM</button>
+  <button class="btn" id="theme">Light</button>
+</div></div>
+
+<main class="wrap" id="app">
+  <section class="stats" id="stats"></section>
+
+  <section class="panel">
+    <div class="phead">
+      <h2>Cross-section</h2>
+      <span class="note">Latest stance, momentum and position in each bank's own history. Click a row to load it below.</span>
+    </div>
+    <div class="tscroll"><table id="xs">
+      <thead><tr id="xshead"></tr></thead>
+      <tbody id="xsbody"></tbody>
+    </table></div>
+  </section>
+
+  <div class="grid2">
+    <section class="panel">
+      <div class="phead"><h2>Aggregate stance</h2>
+        <span class="note">12-month mean of member banks</span></div>
+      <div class="pbody">
+        <div class="lg" id="agg-lg"></div>
+        <div id="agg"></div>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="phead"><h2>Dispersion &amp; diffusion</h2>
+        <span class="note">Are banks moving together?</span></div>
+      <div class="pbody">
+        <div class="lg" id="disp-lg"></div>
+        <div id="disp"></div>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <div class="phead">
+      <h2 id="detail-title">Bank detail</h2>
+      <span class="note" id="detail-note"></span>
+      <span class="spread" id="detail-range"></span>
+    </div>
+    <div class="pbody"><div id="detail"></div><div class="lg" id="detail-lg" style="margin-top:10px"></div></div>
+  </section>
+
+  <section class="panel">
+    <div class="phead"><h2>Stance map</h2>
+      <span class="note">Annual mean tone. Red tightens, blue eases.</span></div>
+    <div class="pbody"><div class="tscroll"><div id="heat"></div></div></div>
+  </section>
+
+  <div class="foot wrap" style="padding-left:0;padding-right:0">
+    <strong>Scale.</strong> Each sentence is scored −10 (hawkish) to +10 (dovish) by three
+    models independently; the published figure is the sentence-level mean across models.
+    The scale is absolute, not directional — holding at the lower bound reads dovish, holding
+    at a restrictive level reads hawkish — so a flat line means an unchanged <em>level</em>.
+    <br><strong>Conviction</strong> is the spread between the three models on the latest
+    statement: tight means they agree, wide means the text is genuinely ambiguous.
+    <span id="built"></span>
+  </div>
+</main>
+<div class="tip" id="tip"></div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = s => document.querySelector(s);
+  const el = (t, a = {}, ...kids) => {
+    const n = document.createElementNS(a.ns || "http://www.w3.org/1999/xhtml", t);
+    for (const [k, v] of Object.entries(a)) if (k !== "ns" && v != null) n.setAttribute(k, v);
+    for (const c of kids.flat()) if (c != null) n.append(c.nodeType ? c : String(c));
+    return n;
+  };
+  const S = (t, a = {}, ...k) => el(t, { ...a, ns: "http://www.w3.org/2000/svg" }, ...k);
+  const fmt = (v, d = 2) => v == null || !isFinite(v) ? "–" : v.toFixed(d);
+  const sgn = (v, d = 2) => v == null || !isFinite(v) ? "–" : (v > 0 ? "+" : "") + v.toFixed(d);
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  // ── state ──────────────────────────────────────────────────
+  let DB = null, SCOPE = "all", SEL = "FED", RANGE = 10;
+  let SORT = { key: "tone", dir: 1 };
+
+  // ── analytics ──────────────────────────────────────────────
+  // Statements land irregularly, so every cross-bank measure runs on a common
+  // monthly grid with each bank's last published score carried forward. That is
+  // what makes "the average bank" and "how far apart are they" well defined.
+  const ym = d => d.slice(0, 7);
+  function monthGrid(from, to) {
+    const out = []; let [y, m] = from.split("-").map(Number);
+    const [ey, em] = to.split("-").map(Number);
+    while (y < ey || (y === ey && m <= em)) {
+      out.push(`${y}-${String(m).padStart(2, "0")}`);
+      if (++m > 12) { m = 1; y++; }
+    }
+    return out;
+  }
+  function monthly(cb, grid) {
+    const last = new Map();
+    cb.dates.forEach((d, i) => { if (cb.ens[i] != null) last.set(ym(d), cb.ens[i]); });
+    let cur = null; const out = [];
+    for (const g of grid) { if (last.has(g)) cur = last.get(g); out.push(cur); }
+    return out;
+  }
+  const mean = a => { const v = a.filter(x => x != null && isFinite(x)); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
+  const std = a => {
+    const v = a.filter(x => x != null && isFinite(x)); if (v.length < 2) return null;
+    const m = v.reduce((s, x) => s + x, 0) / v.length;
+    return Math.sqrt(v.reduce((s, x) => s + (x - m) ** 2, 0) / (v.length - 1));
+  };
+  // calendar.json carries next_meeting as a display string ("Oct 27"), with no
+  // year. Resolve it against today, rolling into next year when the month has
+  // already passed, so the fortnight count and the sort both work on a date.
+  const MON = { jan:0, feb:1, mar:2, apr:3, may:4, jun:5, jul:6, aug:7, sep:8, oct:9, nov:10, dec:11 };
+  function nextDate(str) {
+    if (!str) return null;
+    const m = /^([A-Za-z]{3})[a-z]*\s+(\d{1,2})$/.exec(str.trim());
+    if (!m) return null;
+    const mo = MON[m[1].toLowerCase()];
+    if (mo == null) return null;
+    const now = new Date(), y = now.getFullYear();
+    let d = new Date(Date.UTC(y, mo, +m[2]));
+    // more than a month in the past means it belongs to next year
+    if (d.getTime() < now.getTime() - 31 * 864e5) d = new Date(Date.UTC(y + 1, mo, +m[2]));
+    return d;
+  }
+
+  const pctile = (arr, v) => { const a = arr.filter(x => x != null).sort((x, y) => x - y); if (!a.length) return null; return 100 * a.filter(x => x <= v).length / a.length; };
+
+  function members() {
+    return Object.entries(DB.cbs).filter(([, c]) =>
+      SCOPE === "all" || (SCOPE === "dm" ? c.tier === "DM" : c.tier === "EM"));
+  }
+
+  /** Per-bank metrics on the latest published statement. */
+  function rows() {
+    const grid = DB.grid;
+    return members().map(([key, c]) => {
+      const m = DB.m[key], n = grid.length;
+      const tone = m[n - 1];
+      const at = k => (n - 1 - k >= 0 ? m[n - 1 - k] : null);
+      const d3 = tone != null && at(3) != null ? tone - at(3) : null;
+      const d6 = tone != null && at(6) != null ? tone - at(6) : null;
+      // z and percentile against this bank's own last 5 years, so banks with
+      // very different mean levels stay comparable.
+      const hist5 = m.slice(Math.max(0, n - 60)).filter(x => x != null);
+      const mu = mean(hist5), sd = std(hist5);
+      const z = tone != null && mu != null && sd ? (tone - mu) / sd : null;
+      const pc = tone != null ? pctile(m, tone) : null;
+      // conviction: spread across the three models on the most recent statement
+      const li = c.ens.length - 1;
+      const trio = [c.claude[li], c.gemini[li], c.deepseek[li]].filter(x => x != null);
+      const spread = trio.length >= 2 ? Math.max(...trio) - Math.min(...trio) : null;
+      const cal = DB.cal[c.label] || {};
+      return { key, c, tone, d3, d6, z, pc, spread,
+               days: cal.days_ago, next: cal.next_meeting, nextD: nextDate(cal.next_meeting),
+               status: cal.status,
+               spark: m.slice(Math.max(0, n - 60)) };
+    });
+  }
+
+  /** Aggregate series: mean, DM, EM, cross-sectional spread, diffusion. */
+  function aggregates() {
+    const grid = DB.grid, keys = members().map(([k]) => k);
+    const pick = f => grid.map((_, i) => {
+      const v = keys.filter(k => f(DB.cbs[k])).map(k => DB.m[k][i]).filter(x => x != null);
+      return v.length >= 3 ? v.reduce((s, x) => s + x, 0) / v.length : null;
+    });
+    const disp = grid.map((_, i) => std(keys.map(k => DB.m[k][i])));
+    // diffusion: share of banks whose 3-month change is hawkish (more negative)
+    const diff = grid.map((_, i) => {
+      if (i < 3) return null;
+      const d = keys.map(k => (DB.m[k][i] != null && DB.m[k][i - 3] != null) ? DB.m[k][i] - DB.m[k][i - 3] : null)
+                    .filter(x => x != null);
+      return d.length >= 5 ? 100 * d.filter(x => x < -0.1).length / d.length : null;
+    });
+    // One bank (RBA) reaches back to 1990 and the ECB to 1998, so the raw grid
+    // opens on a decade of near-empty panel. Start where the cross-section is
+    // wide enough for a mean and a spread to mean anything.
+    const counts = grid.map((_, i) => keys.filter(k => DB.m[k][i] != null).length);
+    const from = Math.max(0, counts.findIndex(n => n >= 5));
+    const clip = a => a.slice(from);
+    return { from, grid: grid.slice(from), all: clip(pick(() => true)),
+             dm: clip(pick(c => c.tier === "DM")), em: clip(pick(c => c.tier === "EM")),
+             disp: clip(disp), diff: clip(diff) };
+  }
+
+  // ── chart primitives ───────────────────────────────────────
+  function frame(w, h, pad) {
+    const svg = S("svg", { viewBox: `0 0 ${w} ${h}`, role: "img" });
+    return { svg, w, h, pad, iw: w - pad.l - pad.r, ih: h - pad.t - pad.b };
+  }
+  function yScale(f, lo, hi) { return v => f.pad.t + f.ih - (v - lo) / (hi - lo) * f.ih; }
+  function xScale(f, n) { return i => f.pad.l + (n <= 1 ? 0 : i / (n - 1) * f.iw); }
+  function path(xs, ys, X, Y) {
+    let d = "", pen = false;
+    for (let i = 0; i < ys.length; i++) {
+      if (ys[i] == null) { pen = false; continue; }
+      d += (pen ? "L" : "M") + X(i).toFixed(1) + " " + Y(ys[i]).toFixed(1) + " ";
+      pen = true;
+    }
+    return d.trim();
+  }
+  function yGrid(f, lo, hi, Y, ticks, unit = "") {
+    const g = S("g");
+    ticks.forEach(t => {
+      g.append(S("line", { x1: f.pad.l, x2: f.pad.l + f.iw, y1: Y(t), y2: Y(t),
+                           class: t === 0 ? "zl" : "gl" }));
+      g.append(S("text", { x: f.pad.l - 7, y: Y(t) + 3.5, class: "ax", "text-anchor": "end" }, t + unit));
+    });
+    return g;
+  }
+  function xTicks(f, grid, X) {
+    const g = S("g"), step = Math.max(1, Math.round(grid.length / 7));
+    for (let i = 0; i < grid.length; i += step)
+      g.append(S("text", { x: X(i), y: f.pad.t + f.ih + 15, class: "ax", "text-anchor": "middle" },
+                 grid[i].slice(0, 4)));
+    return g;
+  }
+
+  // crosshair + tooltip, shared by the two time-series panels
+  function hover(f, grid, X, series, host) {
+    const tip = $("#tip");
+    const line = S("line", { y1: f.pad.t, y2: f.pad.t + f.ih, class: "zl", opacity: 0 });
+    const dots = series.map(s => S("circle", { r: 3.5, fill: s.color, stroke: css("--surface"),
+                                               "stroke-width": 2, opacity: 0 }));
+    f.svg.append(line, ...dots);
+    const hit = S("rect", { x: f.pad.l, y: f.pad.t, width: f.iw, height: f.ih, fill: "transparent" });
+    f.svg.append(hit);
+    const off = () => { tip.style.opacity = 0; line.setAttribute("opacity", 0); dots.forEach(d => d.setAttribute("opacity", 0)); };
+    hit.addEventListener("pointerleave", off);
+    hit.addEventListener("pointermove", ev => {
+      const r = f.svg.getBoundingClientRect();
+      const px = (ev.clientX - r.left) / r.width * f.w;
+      let i = Math.round((px - f.pad.l) / (f.iw || 1) * (grid.length - 1));
+      i = Math.max(0, Math.min(grid.length - 1, i));
+      line.setAttribute("x1", X(i)); line.setAttribute("x2", X(i)); line.setAttribute("opacity", 1);
+      const rowsOut = [];
+      series.forEach((s, k) => {
+        const v = s.ys[i];
+        if (v == null) { dots[k].setAttribute("opacity", 0); return; }
+        dots[k].setAttribute("cx", X(i)); dots[k].setAttribute("cy", s.Y(v)); dots[k].setAttribute("opacity", 1);
+        rowsOut.push(`<div class="r"><span>${s.name}</span><b style="color:${s.color}">${s.f ? s.f(v) : fmt(v)}</b></div>`);
+      });
+      tip.innerHTML = `<div class="t">${grid[i]}</div>` + rowsOut.join("");
+      tip.style.opacity = 1;
+      const tw = tip.offsetWidth, th = tip.offsetHeight;
+      tip.style.left = Math.min(window.innerWidth - tw - 10, Math.max(8, ev.clientX + 14)) + "px";
+      tip.style.top = Math.max(8, ev.clientY - th - 12) + "px";
+    });
+    host.addEventListener("pointerleave", off);
+  }
+
+  // ── stat strip ─────────────────────────────────────────────
+  function drawStats(ag, R) {
+    const n = ag.all.length, now = ag.all[n - 1], prev = ag.all[n - 4];
+    const d3 = now != null && prev != null ? now - prev : null;
+    const disp = ag.disp[n - 1], dispPrev = ag.disp[n - 13];
+    const diff = ag.diff[n - 1];
+    // "Due soon" is the resting state for 15 of 22 banks, so counting it says
+    // nothing. What a reader can act on is the diary for the fortnight ahead.
+    const horizon = Date.now() + 14 * 864e5;
+    const soon = R.filter(r => r.nextD && r.nextD.getTime() <= horizon)
+                  .sort((a, b) => a.nextD - b.nextD);
+    const cls = v => v == null ? "flat" : v > 0.05 ? "up" : v < -0.05 ? "down" : "flat";
+    const dir = v => v == null ? "" : v > 0.05 ? "easing" : v < -0.05 ? "tightening" : "unchanged";
+
+    const tiles = [
+      { k: "Aggregate stance", v: fmt(now), d: sgn(d3), dc: cls(d3),
+        sub: `${dir(d3)} over 3 months · ${R.length} banks` },
+      { k: "Hawkish share", v: diff == null ? "–" : Math.round(diff) + "%",
+        d: "", dc: "flat", sub: "of banks tightening tone over 3 months" },
+      { k: "Dispersion", v: fmt(disp), d: sgn(disp != null && dispPrev != null ? disp - dispPrev : null),
+        dc: cls(-(disp - dispPrev)),
+        sub: disp != null && dispPrev != null && disp > dispPrev ? "diverging vs a year ago" : "converging vs a year ago" },
+      { k: "Next 14 days", v: String(soon.length), d: "", dc: "flat",
+        sub: soon.length ? "scheduled: " + soon.slice(0, 4).map(r => r.c.label).join(", ")
+                           + (soon.length > 4 ? ` +${soon.length - 4}` : "")
+                         : "no scheduled decisions in the next fortnight" },
+    ];
+    const host = $("#stats"); host.textContent = "";
+    tiles.forEach(t => host.append(el("div", { class: "stat" },
+      el("div", { class: "eyebrow" }, t.k),
+      el("div", { class: "k" },
+        el("div", { class: "v" }, t.v),
+        t.d ? el("div", { class: "d " + t.dc }, t.d) : null),
+      el("div", { class: "sub" }, t.sub))));
+  }
+
+  // ── cross-section table ────────────────────────────────────
+  const COLS = [
+    { key: "cb",    lab: "Bank",       t: "Central bank and currency" },
+    { key: "tone",  lab: "Stance",     t: "Latest published tone, −10 hawkish to +10 dovish" },
+    { key: "d3",    lab: "3M",         t: "Change over three months" },
+    { key: "d6",    lab: "6M",         t: "Change over six months" },
+    { key: "z",     lab: "Z (5y)",     t: "Standard deviations from this bank's own 5-year mean" },
+    { key: "pc",    lab: "%ile",       t: "Percentile against this bank's full history" },
+    { key: "spread",lab: "Conviction", t: "Spread between the three models on the latest statement" },
+    { key: "days",  lab: "Last",       t: "Days since the last decision" },
+    { key: "next",  lab: "Next",       t: "Next scheduled decision" },
+    { key: "spark", lab: "5Y trend",   t: "Monthly tone, last five years" },
+  ];
+  function sparkline(vals) {
+    const v = vals.filter(x => x != null);
+    if (v.length < 2) return el("span", { class: "flat" }, "–");
+    const lo = Math.min(...v), hi = Math.max(...v), pad = (hi - lo) * 0.18 || 1;
+    const f = frame(104, 24, { l: 1, r: 1, t: 3, b: 3 });
+    const X = xScale(f, vals.length), Y = yScale(f, lo - pad, hi + pad);
+    const last = v[v.length - 1], first = v[0];
+    const col = last < first ? css("--hawk") : css("--dove");
+    f.svg.append(S("path", { d: path(null, vals, X, Y), fill: "none", stroke: col,
+                             "stroke-width": 1.6, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    const li = vals.length - 1 - [...vals].reverse().findIndex(x => x != null);
+    f.svg.append(S("circle", { cx: X(li), cy: Y(vals[li]), r: 2.6, fill: col }));
+    f.svg.setAttribute("style", "width:104px");
+    return f.svg;
+  }
+  function bic(v) {
+    const bar = el("span", { class: "bic" }, el("span", { class: "axis" }));
+    if (v != null) {
+      const mag = Math.min(Math.abs(v) / 6, 1) * 50;
+      const f = el("span", { class: "fill" });
+      f.style.background = v < 0 ? css("--hawk") : css("--dove");
+      f.style.opacity = ".85";
+      if (v < 0) { f.style.right = "50%"; f.style.width = mag + "%"; }
+      else { f.style.left = "50%"; f.style.width = mag + "%"; }
+      bar.append(f);
+    }
+    return el("span", { class: "stance" }, bar, el("span", { class: "lab" }, fmt(v)));
+  }
+  function drawTable(R) {
+    const head = $("#xshead"); head.textContent = "";
+    COLS.forEach(c => {
+      const th = el("th", { title: c.t, tabindex: "0" }, c.lab);
+      if (SORT.key === c.key) { th.setAttribute("aria-sort", SORT.dir > 0 ? "descending" : "ascending");
+        th.append(el("span", { class: "ar" }, SORT.dir > 0 ? " v" : " ^")); }
+      const go = () => { if (c.key === "spark") return;
+        SORT = { key: c.key, dir: SORT.key === c.key ? -SORT.dir : (c.key === "cb" ? -1 : 1) }; render(); };
+      th.addEventListener("click", go);
+      th.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+      head.append(th);
+    });
+
+    const val = r => SORT.key === "cb" ? r.c.label
+                   : SORT.key === "next" ? (r.nextD ? -r.nextD.getTime() : null)
+                   : r[SORT.key];
+    const sorted = [...R].sort((a, b) => {
+      const x = val(a), y = val(b);
+      if (x == null) return 1; if (y == null) return -1;
+      return (typeof x === "string" ? x.localeCompare(y) : x - y) * -SORT.dir;
+    });
+
+    const body = $("#xsbody"); body.textContent = "";
+    sorted.forEach(r => {
+      const tr = el("tr", r.key === SEL ? { class: "sel" } : {});
+      tr.addEventListener("click", () => { SEL = r.key; render(); });
+      const dcell = v => el("td", {}, el("span", { class: "pill " + (v == null ? "n" : v < -0.1 ? "h" : v > 0.1 ? "d" : "n") }, sgn(v, 2)));
+      tr.append(
+        el("td", {}, el("span", { class: "cb" },
+          el("span", { class: "ccy" }, r.c.label),
+          el("span", { class: "cbname" }, r.c.name),
+          el("span", { class: "tier" }, r.c.tier))),
+        el("td", {}, bic(r.tone)),
+        dcell(r.d3), dcell(r.d6),
+        el("td", { class: "num" }, sgn(r.z, 1)),
+        el("td", { class: "num" }, r.pc == null ? "–" : Math.round(r.pc)),
+        el("td", { class: "num", title: "max − min across Claude, Gemini and DeepSeek" }, fmt(r.spread, 1)),
+        el("td", { class: "num " + (/due|overdue/i.test(r.status || "") ? "due" : "soon") }, r.days == null ? "–" : r.days + "d"),
+        el("td", { class: "num soon" }, r.next || "–"),
+        el("td", {}, sparkline(r.spark)));
+      body.append(tr);
+    });
+  }
+
+  // ── aggregate chart ────────────────────────────────────────
+  function drawAgg(ag) {
+    const grid = ag.grid, host = $("#agg"); host.textContent = "";
+    const f = frame(620, 230, { l: 34, r: 10, t: 10, b: 24 });
+    const series = [
+      { name: "All banks", ys: ag.all, color: css("--s1") },
+      { name: "Developed", ys: ag.dm, color: css("--s2") },
+      { name: "Emerging",  ys: ag.em, color: css("--s3") },
+    ].filter(s => s.ys.some(v => v != null));
+    const all = series.flatMap(s => s.ys).filter(v => v != null);
+    const lo = Math.min(-1, Math.floor(Math.min(...all))), hi = Math.max(1, Math.ceil(Math.max(...all)));
+    const X = xScale(f, grid.length), Y = yScale(f, lo, hi);
+    const ticks = []; for (let t = Math.ceil(lo); t <= hi; t++) if ((hi - lo) <= 8 || t % 2 === 0) ticks.push(t);
+    f.svg.append(yGrid(f, lo, hi, Y, ticks), xTicks(f, grid, X));
+    series.forEach(s => { s.Y = Y;
+      f.svg.append(S("path", { d: path(null, s.ys, X, Y), fill: "none", stroke: s.color,
+                               "stroke-width": 2, "stroke-linejoin": "round" })); });
+    host.append(f.svg);
+    hover(f, grid, X, series, host);
+    const lg = $("#agg-lg"); lg.textContent = "";
+    series.forEach(s => { const i = el("i"); i.style.background = s.color;
+      lg.append(el("span", {}, i, el("b", {}, s.name))); });
+    lg.append(el("span", { style: "color:var(--fg-3)" }, "up = dovish, down = hawkish"));
+  }
+
+  // ── dispersion + diffusion ─────────────────────────────────
+  function drawDisp(ag) {
+    const grid = ag.grid, host = $("#disp"); host.textContent = "";
+    const f = frame(620, 230, { l: 34, r: 34, t: 10, b: 24 });
+    const dv = ag.disp.filter(v => v != null);
+    const hi = Math.max(1, Math.ceil(Math.max(...dv)));
+    const X = xScale(f, grid.length), Y = yScale(f, 0, hi), Y2 = yScale(f, 0, 100);
+    const ticks = []; for (let t = 0; t <= hi; t++) ticks.push(t);
+    f.svg.append(yGrid(f, 0, hi, Y, ticks));
+    // diffusion drawn as a recessive band behind dispersion, on its own right
+    // axis — labelled as a share so the two are never read off one scale.
+    f.svg.append(S("path", {
+      d: path(null, ag.diff, X, Y2) + ` L ${X(grid.length - 1)} ${f.pad.t + f.ih} L ${X(0)} ${f.pad.t + f.ih} Z`,
+      fill: css("--hawk"), opacity: .12, stroke: "none" }));
+    f.svg.append(S("path", { d: path(null, ag.diff, X, Y2), fill: "none",
+                             stroke: css("--hawk"), "stroke-width": 1.4, opacity: .55, "stroke-dasharray": "4 3" }));
+    f.svg.append(S("path", { d: path(null, ag.disp, X, Y), fill: "none",
+                             stroke: css("--s4"), "stroke-width": 2, "stroke-linejoin": "round" }));
+    [0, 50, 100].forEach(p => f.svg.append(S("text", { x: f.pad.l + f.iw + 6, y: Y2(p) + 3.5,
+      class: "ax", "text-anchor": "start" }, p + "%")));
+    f.svg.append(xTicks(f, grid, X));
+    host.append(f.svg);
+    hover(f, grid, X, [
+      { name: "Dispersion", ys: ag.disp, color: css("--s4"), Y },
+      { name: "Hawkish share", ys: ag.diff, color: css("--hawk"), Y: Y2, f: v => Math.round(v) + "%" },
+    ], host);
+    const lg = $("#disp-lg"); lg.textContent = "";
+    [["Dispersion (left)", css("--s4")], ["Hawkish share (right)", css("--hawk")]].forEach(([n, c]) => {
+      const i = el("i"); i.style.background = c; lg.append(el("span", {}, i, el("b", {}, n)));
+    });
+    lg.append(el("span", { style: "color:var(--fg-3)" }, "high dispersion = idiosyncratic cycles"));
+  }
+
+  // ── bank detail ────────────────────────────────────────────
+  function drawDetail() {
+    const c = DB.cbs[SEL], host = $("#detail"); host.textContent = "";
+    $("#detail-title").textContent = c.name;
+    const cal = DB.cal[c.label] || {};
+    $("#detail-note").textContent =
+      `${c.label} / ${c.tier} / ${c.ens.length} statements` +
+      (cal.next_meeting ? ` · next decision ${cal.next_meeting}` : "");
+
+    const rr = $("#detail-range"); rr.textContent = "";
+    [[5, "5Y"], [10, "10Y"], [99, "Max"]].forEach(([y, lab]) => {
+      const b = el("button", { class: "btn", "aria-pressed": RANGE === y ? "true" : "false" }, lab);
+      b.addEventListener("click", () => { RANGE = y; render(); });
+      rr.append(b);
+    });
+
+    const cut = new Date(); cut.setFullYear(cut.getFullYear() - RANGE);
+    const idx = c.dates.map((d, i) => [d, i]).filter(([d]) => new Date(d) >= cut).map(([, i]) => i);
+    const I = idx.length > 3 ? idx : c.dates.map((_, i) => i);
+    const dates = I.map(i => c.dates[i]), ens = I.map(i => c.ens[i]);
+    const tri = I.map(i => [c.claude[i], c.gemini[i], c.deepseek[i]].filter(x => x != null));
+    const lo3 = tri.map(t => t.length ? Math.min(...t) : null);
+    const hi3 = tri.map(t => t.length ? Math.max(...t) : null);
+
+    const f = frame(1240, 300, { l: 36, r: 12, t: 12, b: 26 });
+    const vals = [...ens, ...lo3, ...hi3].filter(v => v != null);
+    const lo = Math.floor(Math.min(...vals) - .6), hi = Math.ceil(Math.max(...vals) + .6);
+    const X = xScale(f, dates.length), Y = yScale(f, lo, hi);
+    const ticks = []; for (let t = Math.ceil(lo); t <= hi; t++) if ((hi - lo) <= 10 || t % 2 === 0) ticks.push(t);
+    f.svg.append(yGrid(f, lo, hi, Y, ticks));
+
+    // model range as a band: its width is the disagreement, which is the
+    // honest uncertainty on every point of the published line.
+    let up = "", dn = "";
+    for (let i = 0; i < dates.length; i++) if (hi3[i] != null) up += (up ? "L" : "M") + X(i).toFixed(1) + " " + Y(hi3[i]).toFixed(1) + " ";
+    for (let i = dates.length - 1; i >= 0; i--) if (lo3[i] != null) dn += "L" + X(i).toFixed(1) + " " + Y(lo3[i]).toFixed(1) + " ";
+    if (up) f.svg.append(S("path", { d: up + dn + "Z", fill: css("--accent"), opacity: .14, stroke: "none" }));
+
+    f.svg.append(S("path", { d: path(null, ens, X, Y), fill: "none", stroke: css("--accent"),
+                             "stroke-width": 2, "stroke-linejoin": "round" }));
+    // endpoint emphasis
+    const li = ens.length - 1 - [...ens].reverse().findIndex(v => v != null);
+    if (isFinite(li) && ens[li] != null) {
+      f.svg.append(S("circle", { cx: X(li), cy: Y(ens[li]), r: 4, fill: css("--accent"),
+                                 stroke: css("--surface"), "stroke-width": 2 }));
+      f.svg.append(S("text", { x: X(li) - 8, y: Y(ens[li]) - 9, class: "ax", "text-anchor": "end",
+                               fill: css("--fg") }, fmt(ens[li])));
+    }
+    const step = Math.max(1, Math.round(dates.length / 9));
+    for (let i = 0; i < dates.length; i += step)
+      f.svg.append(S("text", { x: X(i), y: f.pad.t + f.ih + 16, class: "ax", "text-anchor": "middle" },
+                     dates[i].slice(0, 7)));
+    host.append(f.svg);
+    hover(f, dates, X, [{ name: "Ensemble", ys: ens, color: css("--accent"), Y }], host);
+
+    const lg = $("#detail-lg"); lg.textContent = "";
+    const i1 = el("i"); i1.style.background = css("--accent");
+    const i2 = el("i"); i2.style.background = css("--accent"); i2.style.opacity = ".35"; i2.style.height = "9px";
+    lg.append(el("span", {}, i1, el("b", {}, "Published ensemble")),
+              el("span", {}, i2, el("b", {}, "Range across the three models")));
+  }
+
+  // ── stance map ─────────────────────────────────────────────
+  function drawHeat(R) {
+    const host = $("#heat"); host.textContent = "";
+    const yrs = []; for (let y = new Date().getFullYear() - 11; y <= new Date().getFullYear(); y++) yrs.push(y);
+    const cw = 52, ch = 22, lw = 232;
+    const f = frame(lw + yrs.length * cw + 10, R.length * ch + 30, { l: lw, r: 10, t: 22, b: 8 });
+    yrs.forEach((y, i) => f.svg.append(S("text", { x: f.pad.l + i * cw + cw / 2, y: 14,
+      class: "ax", "text-anchor": "middle" }, String(y).slice(2))));
+    const sorted = [...R].sort((a, b) => (a.tone ?? 0) - (b.tone ?? 0));
+    sorted.forEach((r, ri) => {
+      const yy = f.pad.t + ri * ch;
+      f.svg.append(S("text", { x: lw - 10, y: yy + 15, class: "ax", "text-anchor": "end",
+                               fill: css("--fg-2") }, r.c.label + "  " + r.c.name));
+      yrs.forEach((y, ci) => {
+        const v = mean(r.c.dates.map((d, i) => d.slice(0, 4) === String(y) ? r.c.ens[i] : null));
+        const g = S("rect", { x: f.pad.l + ci * cw + 1, y: yy + 1, width: cw - 3, height: ch - 3, rx: 3,
+          fill: v == null ? css("--surface-2") : (v < 0 ? css("--hawk") : css("--dove")),
+          "fill-opacity": v == null ? .28 : 0.1 + Math.min(Math.abs(v) / 4, 1) * .6 });
+        g.append(S("title", {}, `${r.c.label} ${y}: ${v == null ? "no statements" : fmt(v)}`));
+        f.svg.append(g);
+        // Every populated cell carries its number: the fill alone cannot be
+        // read precisely, and this is also the relief the light-mode contrast
+        // check requires.
+        if (v != null)
+          f.svg.append(S("text", { x: f.pad.l + ci * cw + cw / 2 - 1, y: yy + 15,
+            "text-anchor": "middle", fill: css("--fg"),
+            style: "font-family:var(--mono);font-size:10px" }, fmt(v, 1)));
+      });
+    });
+    f.svg.setAttribute("style", `min-width:${f.w}px`);
+    host.append(f.svg);
+  }
+
+  // ── render ─────────────────────────────────────────────────
+  function render() {
+    const R = rows(), ag = aggregates();
+    if (!R.some(r => r.key === SEL)) SEL = R[0]?.key || SEL;
+    drawStats(ag, R); drawTable(R); drawAgg(ag); drawDisp(ag); drawDetail(); drawHeat(R);
+  }
+
+  // ── boot ───────────────────────────────────────────────────
+  function setTheme(t) {
+    document.documentElement.setAttribute("data-theme", t);
+    $("#theme").textContent = t === "dark" ? "Light" : "Dark";
+    try { localStorage.setItem("ptt-theme", t); } catch (e) { /* private window */ }
+    if (DB) render();
+  }
+  $("#theme").addEventListener("click", () =>
+    setTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"));
+  let saved = null; try { saved = localStorage.getItem("ptt-theme"); } catch (e) { /* ignore */ }
+  setTheme(saved || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"));
+
+  [["all", "#scope-all"], ["dm", "#scope-dm"], ["em", "#scope-em"]].forEach(([s, sel]) =>
+    $(sel).addEventListener("click", () => {
+      SCOPE = s;
+      ["#scope-all", "#scope-dm", "#scope-em"].forEach(q =>
+        $(q).setAttribute("aria-pressed", q === sel ? "true" : "false"));
+      render();
+    }));
+
+  fetch("../data/tone.json").then(r => r.json()).then(db => {
+    DB = db;
+    DB.cal = Object.fromEntries(db.calendar.map(c => [c.cb, c]));
+    const dates = Object.values(db.cbs).flatMap(c => c.dates);
+    DB.grid = monthGrid(ym(dates.reduce((a, b) => a < b ? a : b)), ym(dates.reduce((a, b) => a > b ? a : b)));
+    DB.m = Object.fromEntries(Object.entries(db.cbs).map(([k, c]) => [k, monthly(c, DB.grid)]));
+    $("#asof").textContent = "as of " + (db.source_last_updated || "").slice(0, 10);
+    $("#built").textContent = ` Built ${(db.built_at || "").slice(0, 10)} from ${
+      Object.values(db.cbs).reduce((s, c) => s + c.dates.length, 0).toLocaleString()} scored statements.`;
+    render();
+    addEventListener("resize", () => { clearTimeout(window._rz); window._rz = setTimeout(render, 160); });
+  }).catch(e => {
+    $("#live").style.background = css("--crit");
+    $("#asof").textContent = "data/tone.json did not load";
+    $("#stats").append(el("div", { class: "stat" }, el("div", { class: "eyebrow" }, "Error"),
+      el("div", { class: "sub" }, String(e))));
+  });
+})();
+</script>
+
+</body>
+</html>
