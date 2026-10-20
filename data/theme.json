@@ -1,0 +1,459 @@
+{
+ "built": "dark",
+ "fonts": {
+  "sans": "\"IBM Plex Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+  "mono": "\"IBM Plex Mono\", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+ },
+ "chrome": {
+  "dark": {
+   "surface": "#10151c",
+   "page": "#0a0e13",
+   "elev": "#171d26",
+   "ink1": "#e9edf1",
+   "ink2": "#a9b3be",
+   "muted": "#6d7784",
+   "grid": "#1f262f",
+   "axis": "#2b343f",
+   "border": "rgba(255,255,255,0.08)",
+   "deemph": "#39424d",
+   "mid": "#262e38",
+   "accent": "#e8b04a"
+  },
+  "light": {
+   "surface": "#ffffff",
+   "page": "#f2f4f6",
+   "elev": "#f7f8fa",
+   "ink1": "#111827",
+   "ink2": "#4b5563",
+   "muted": "#8a94a3",
+   "grid": "#e8eaee",
+   "axis": "#cfd4db",
+   "border": "rgba(17,24,39,0.10)",
+   "deemph": "#c9cfd7",
+   "mid": "#eceff3",
+   "accent": "#b7791f"
+  }
+ },
+ "categorical": {
+  "1": {
+   "hue": "blue",
+   "light": "#2a78d6",
+   "dark": "#3987e5"
+  },
+  "2": {
+   "hue": "orange",
+   "light": "#eb6834",
+   "dark": "#d95926"
+  },
+  "3": {
+   "hue": "aqua",
+   "light": "#1baf7a",
+   "dark": "#199e70"
+  },
+  "4": {
+   "hue": "yellow",
+   "light": "#eda100",
+   "dark": "#c98500"
+  },
+  "5": {
+   "hue": "magenta",
+   "light": "#e87ba4",
+   "dark": "#d55181"
+  },
+  "6": {
+   "hue": "green",
+   "light": "#008300",
+   "dark": "#008300"
+  },
+  "7": {
+   "hue": "violet",
+   "light": "#4a3aa7",
+   "dark": "#9085e9"
+  },
+  "8": {
+   "hue": "red",
+   "light": "#e34948",
+   "dark": "#e66767"
+  }
+ },
+ "sequential": {
+  "100": "#cde2fb",
+  "150": "#b7d3f6",
+  "200": "#9ec5f4",
+  "250": "#86b6ef",
+  "300": "#6da7ec",
+  "350": "#5598e7",
+  "400": "#3987e5",
+  "450": "#2a78d6",
+  "500": "#256abf",
+  "550": "#1c5cab",
+  "600": "#184f95",
+  "650": "#104281",
+  "700": "#0d366b"
+ },
+ "status": {
+  "good": "#0ca30c",
+  "warning": "#fab219",
+  "serious": "#ec835a",
+  "critical": "#d03b3b"
+ },
+ "diverging": {
+  "dark": [
+   [
+    0.0,
+    "#f6b3b3"
+   ],
+   [
+    0.25,
+    "#e66767"
+   ],
+   [
+    0.5,
+    "#262e38"
+   ],
+   [
+    0.75,
+    "#3987e5"
+   ],
+   [
+    1.0,
+    "#b7d3f6"
+   ]
+  ],
+  "light": [
+   [
+    0.0,
+    "#7a1f1e"
+   ],
+   [
+    0.25,
+    "#e34948"
+   ],
+   [
+    0.5,
+    "#eceff3"
+   ],
+   [
+    0.75,
+    "#2a78d6"
+   ],
+   [
+    1.0,
+    "#0d366b"
+   ]
+  ]
+ },
+ "hawk": {
+  "light": "#e34948",
+  "dark": "#e66767"
+ },
+ "dove": {
+  "light": "#2a78d6",
+  "dark": "#3987e5"
+ },
+ "regions": {
+  "NA": {
+   "light": "#2a78d6",
+   "dark": "#3987e5"
+  },
+  "Europe": {
+   "light": "#eb6834",
+   "dark": "#d95926"
+  },
+  "Asia-Pac": {
+   "light": "#1baf7a",
+   "dark": "#199e70"
+  },
+  "LATAM": {
+   "light": "#eda100",
+   "dark": "#c98500"
+  },
+  "EMEA": {
+   "light": "#e87ba4",
+   "dark": "#d55181"
+  }
+ },
+ "groups": {
+  "DM": {
+   "light": "#2a78d6",
+   "dark": "#3987e5"
+  },
+  "EM": {
+   "light": "#eb6834",
+   "dark": "#d95926"
+  }
+ },
+ "models": {
+  "claude": {
+   "label": "Claude",
+   "light": "#008300",
+   "dark": "#008300"
+  },
+  "gemini": {
+   "label": "Gemini",
+   "light": "#4a3aa7",
+   "dark": "#9085e9"
+  },
+  "deepseek": {
+   "label": "DeepSeek",
+   "light": "#e34948",
+   "dark": "#e66767"
+  }
+ },
+ "dark_map": {
+  "#2a78d6": "#3987e5",
+  "#eb6834": "#d95926",
+  "#1baf7a": "#199e70",
+  "#eda100": "#c98500",
+  "#e87ba4": "#d55181",
+  "#008300": "#008300",
+  "#4a3aa7": "#9085e9",
+  "#e34948": "#e66767",
+  "#7a1f1e": "#f6b3b3",
+  "#eceff3": "#262e38",
+  "#0d366b": "#b7d3f6",
+  "#ffffff": "#10151c",
+  "#f2f4f6": "#0a0e13",
+  "#f7f8fa": "#171d26",
+  "#111827": "#e9edf1",
+  "#4b5563": "#a9b3be",
+  "#8a94a3": "#6d7784",
+  "#e8eaee": "#1f262f",
+  "#cfd4db": "#2b343f",
+  "rgba(17,24,39,0.10)": "rgba(255,255,255,0.08)",
+  "#c9cfd7": "#39424d",
+  "#b7791f": "#e8b04a"
+ },
+ "light_map": {
+  "#3987e5": "#2a78d6",
+  "#d95926": "#eb6834",
+  "#199e70": "#1baf7a",
+  "#c98500": "#eda100",
+  "#d55181": "#e87ba4",
+  "#008300": "#008300",
+  "#9085e9": "#4a3aa7",
+  "#e66767": "#e34948",
+  "#f6b3b3": "#7a1f1e",
+  "#262e38": "#eceff3",
+  "#b7d3f6": "#0d366b",
+  "#10151c": "#ffffff",
+  "#0a0e13": "#f2f4f6",
+  "#171d26": "#f7f8fa",
+  "#e9edf1": "#111827",
+  "#a9b3be": "#4b5563",
+  "#6d7784": "#8a94a3",
+  "#1f262f": "#e8eaee",
+  "#2b343f": "#cfd4db",
+  "rgba(255,255,255,0.08)": "rgba(17,24,39,0.10)",
+  "#39424d": "#c9cfd7",
+  "#e8b04a": "#b7791f"
+ },
+ "layout": {
+  "light": {
+   "paper_bgcolor": "#ffffff",
+   "plot_bgcolor": "#ffffff",
+   "font": {
+    "family": "\"IBM Plex Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+    "color": "#4b5563",
+    "size": 11.5
+   },
+   "xaxis": {
+    "gridcolor": "#e8eaee",
+    "gridwidth": 1,
+    "zeroline": true,
+    "zerolinecolor": "#cfd4db",
+    "zerolinewidth": 1,
+    "linecolor": "#cfd4db",
+    "showline": false,
+    "tickcolor": "#cfd4db",
+    "ticks": "",
+    "tickfont": {
+     "color": "#8a94a3",
+     "size": 10.5,
+     "family": "\"IBM Plex Mono\", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+    },
+    "title": {
+     "font": {
+      "color": "#8a94a3",
+      "size": 10.5,
+      "family": "\"IBM Plex Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+     },
+     "standoff": 6
+    }
+   },
+   "yaxis": {
+    "gridcolor": "#e8eaee",
+    "gridwidth": 1,
+    "zeroline": true,
+    "zerolinecolor": "#cfd4db",
+    "zerolinewidth": 1,
+    "linecolor": "#cfd4db",
+    "showline": false,
+    "tickcolor": "#cfd4db",
+    "ticks": "",
+    "tickfont": {
+     "color": "#8a94a3",
+     "size": 10.5,
+     "family": "\"IBM Plex Mono\", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+    },
+    "title": {
+     "font": {
+      "color": "#8a94a3",
+      "size": 10.5,
+      "family": "\"IBM Plex Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+     },
+     "standoff": 6
+    }
+   },
+   "legend": {
+    "orientation": "h",
+    "x": 1,
+    "y": 1.02,
+    "xanchor": "right",
+    "yanchor": "bottom",
+    "bgcolor": "rgba(0,0,0,0)",
+    "font": {
+     "size": 10.5,
+     "color": "#4b5563"
+    },
+    "itemwidth": 30,
+    "tracegroupgap": 4
+   },
+   "hoverlabel": {
+    "bgcolor": "#f7f8fa",
+    "bordercolor": "rgba(17,24,39,0.10)",
+    "font": {
+     "color": "#111827",
+     "size": 11.5,
+     "family": "\"IBM Plex Mono\", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+    }
+   },
+   "hovermode": "x unified",
+   "margin": {
+    "l": 40,
+    "r": 12,
+    "t": 22,
+    "b": 32
+   },
+   "colorway": [
+    "#2a78d6",
+    "#eb6834",
+    "#1baf7a",
+    "#eda100",
+    "#e87ba4",
+    "#008300",
+    "#4a3aa7",
+    "#e34948"
+   ],
+   "modebar": {
+    "bgcolor": "rgba(0,0,0,0)",
+    "color": "#8a94a3",
+    "activecolor": "#111827"
+   },
+   "dragmode": "zoom"
+  },
+  "dark": {
+   "paper_bgcolor": "#10151c",
+   "plot_bgcolor": "#10151c",
+   "font": {
+    "family": "\"IBM Plex Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+    "color": "#a9b3be",
+    "size": 11.5
+   },
+   "xaxis": {
+    "gridcolor": "#1f262f",
+    "gridwidth": 1,
+    "zeroline": true,
+    "zerolinecolor": "#2b343f",
+    "zerolinewidth": 1,
+    "linecolor": "#2b343f",
+    "showline": false,
+    "tickcolor": "#2b343f",
+    "ticks": "",
+    "tickfont": {
+     "color": "#6d7784",
+     "size": 10.5,
+     "family": "\"IBM Plex Mono\", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+    },
+    "title": {
+     "font": {
+      "color": "#6d7784",
+      "size": 10.5,
+      "family": "\"IBM Plex Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+     },
+     "standoff": 6
+    }
+   },
+   "yaxis": {
+    "gridcolor": "#1f262f",
+    "gridwidth": 1,
+    "zeroline": true,
+    "zerolinecolor": "#2b343f",
+    "zerolinewidth": 1,
+    "linecolor": "#2b343f",
+    "showline": false,
+    "tickcolor": "#2b343f",
+    "ticks": "",
+    "tickfont": {
+     "color": "#6d7784",
+     "size": 10.5,
+     "family": "\"IBM Plex Mono\", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+    },
+    "title": {
+     "font": {
+      "color": "#6d7784",
+      "size": 10.5,
+      "family": "\"IBM Plex Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+     },
+     "standoff": 6
+    }
+   },
+   "legend": {
+    "orientation": "h",
+    "x": 1,
+    "y": 1.02,
+    "xanchor": "right",
+    "yanchor": "bottom",
+    "bgcolor": "rgba(0,0,0,0)",
+    "font": {
+     "size": 10.5,
+     "color": "#a9b3be"
+    },
+    "itemwidth": 30,
+    "tracegroupgap": 4
+   },
+   "hoverlabel": {
+    "bgcolor": "#171d26",
+    "bordercolor": "rgba(255,255,255,0.08)",
+    "font": {
+     "color": "#e9edf1",
+     "size": 11.5,
+     "family": "\"IBM Plex Mono\", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+    }
+   },
+   "hovermode": "x unified",
+   "margin": {
+    "l": 40,
+    "r": 12,
+    "t": 22,
+    "b": 32
+   },
+   "colorway": [
+    "#3987e5",
+    "#d95926",
+    "#199e70",
+    "#c98500",
+    "#d55181",
+    "#008300",
+    "#9085e9",
+    "#e66767"
+   ],
+   "modebar": {
+    "bgcolor": "rgba(0,0,0,0)",
+    "color": "#6d7784",
+    "activecolor": "#e9edf1"
+   },
+   "dragmode": "zoom"
+  }
+ }
+}
