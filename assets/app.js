@@ -727,8 +727,88 @@ function renderXs() {
 }
 
 // ── Models ───────────────────────────────────────────────────────────────────
+function renderModelSets(M) {
+  const hist = M.history || [], cur = hist[hist.length - 1], orig = hist[0];
+  if (!cur) return;
+  const pm = (M.comparison && M.comparison.per_model) || {};
+  const cols = [
+    { key: "label", label: "Model" }, { key: "model_id", label: "API id", mono: true },
+    { key: "role", label: "Role" },
+    { key: "retest", label: "Retest MAD", num: true, nd: 3, title: "Same statement scored twice: mean absolute difference (bar ≤ 0.25)" },
+    { key: "r_ens", label: "r vs others", num: true, nd: 3, title: "Correlation with the mean of the other members on the fixed sample" },
+    { key: "null_rate", label: "Null rate", num: true, nd: 2, title: "Share of sentences judged to carry no signal" },
+    { key: "cost", label: "$/stmt", num: true, nd: 3 }, { key: "latency", label: "s/stmt", num: true, nd: 0 },
+  ];
+  const rows = (h, roleOf) => Object.entries(h.members).map(([k, id]) => ({ label: h.labels[k], model_id: id, role: roleOf(k), ...(pm[k] || {}) }));
+  const rep = cur.replaces || {};
+  const changed = (k) => rep[k] ? `replaces ${cur.labels[rep[k]] || rep[k]}` : !(orig.members[k]) ? "added" : (orig.members[k] === cur.members[k] ? "kept" : "re-pinned");
+  const curRows = rows(cur, k => changed(k));
+  const origRows = rows(orig, k => cur.members[k] ? "kept" : "retired");
+  const sec = (title, sub, r) => { const d = el("div", { style: "margin-top:10px" });
+    d.append(el("div", { class: "eyebrow", style: "margin:0 0 6px" }, [txt(title + " "), el("span", { class: "ctx", text: sub })]));
+    const w = el("div", { class: "tablewrap" }); sortableTable(w, cols, r); d.append(w); return d; };
+  $("#sets").replaceChildren(
+    sec(`Current set · ensemble ${cur.version}`, `since ${cur.from}`, curRows),
+    sec(`Original set · ensemble ${orig.version}`, `${orig.from} to ${orig.to}`, origRows),
+    el("p", { class: "note", text: cur.note }));
+}
+function renderModelComparison(M) {
+  const c = M.comparison, ov = M.overlap;
+  const wrap = $("#compare-table");
+  if (c && c.ensembles) {
+    sortableTable(wrap, [
+      { key: "version", label: "Ensemble" }, { key: "members", label: "Members" },
+      { key: "retest", label: "Retest MAD", num: true, nd: 3, title: "The ensemble mean, same statements scored twice" },
+      { key: "loo_r", label: "Leave-one-out r", num: true, nd: 3, title: "Each member vs the mean of the rest" },
+      { key: "dispersion", label: "Dispersion", num: true, nd: 3, title: "Mean spread of members per statement" },
+      { key: "auc", label: "Hike/cut AUC", num: true, nd: 3, title: "Separation of announced hikes from cuts" },
+      { key: "cost", label: "$/stmt", num: true, nd: 3 },
+    ], c.ensembles);
+  }
+  const s = ov ? ov.summary : (c && c.series_shift);
+  $("#compare-sub").textContent = s ? `on the statements both versions scored (n ${s.n.toLocaleString()}): mean shift ${s.mean >= 0 ? "+" : ""}${s.mean.toFixed(2)}, typical ${s.mad.toFixed(2)} per statement, r ${s.r.toFixed(3)}` : "";
+  if (ov) { mount("chart-overlap", ov.series); mount("chart-overlap-cb", ov.by_cb); }
+  else { for (const id of ["overlap", "overlap-cb"]) { const f = document.querySelector(`figure[data-chart="${id}"]`); if (f) { f.hidden = true; const p = f.querySelector(".plot"); if (p) p.hidden = true; } } }
+}
+function renderRounds(M) {
+  const R = (M.rounds && M.rounds.rounds) || [];
+  const wrap = $("#rounds");
+  if (!R.length) { wrap.replaceChildren(el("p", { class: "empty", text: "No candidate round recorded." })); return; }
+  const rows = R.flatMap(r => r.candidates.map(c => ({ date: r.date, round: r.name, ...c })));
+  const tag = (v) => el("span", { class: "tag", text: v, style: v.startsWith("ADOPT") ? "color:var(--dove)" : v === "REJECT" ? "color:var(--hawk)" : "" });
+  sortableTable(wrap, [
+    { key: "date", label: "Date", mono: true }, { key: "round", label: "Round" }, { key: "label", label: "Model" }, { key: "model_id", label: "API id", mono: true },
+    { key: "verdict", label: "Verdict", render: v => tag(v) }, { key: "gate_failed", label: "Gate failed" },
+    { key: "r", label: "r vs ensemble", num: true, nd: 3 }, { key: "retest", label: "Retest", num: true, nd: 3 },
+    { key: "probe", label: "Null probe", num: true, nd: 2 }, { key: "cost", label: "$/stmt", num: true, nd: 3 },
+    { key: "decision", label: "Decision", render: v => el("span", { style: "white-space:normal", text: v }) },
+  ], rows);
+  $("#rounds-sub").textContent = R.map(r => `${r.date}: $${r.cost_usd.toFixed(0)}`).join(" · ") + " · each on the same 200 statements, two replicates";
+}
+function renderFramework(M) {
+  const b = M.bars || {};
+  const pct = (v) => `${Math.round(v * 100)}%`;
+  $("#framework").innerHTML = `
+    <h3>How a model gets in, and how one leaves</h3>
+    <p>The published number is an ensemble because no single model is stable enough to publish alone, and the set changes only by a fixed procedure. There is no ground truth for tone, so the procedure measures what can be measured: <strong>stability</strong> (a model against itself), <strong>consistency</strong> (a model against the incumbents), <strong>whether the ensemble gets better with it</strong>, and one anchor with a claim on accuracy, the decision each statement announces.</p>
+    <h3>1 · Discovery</h3>
+    <p>A monthly job lists every model each provider offers, keeps a watchlist of ids with first-seen dates, probes which build each incumbent id resolves to, and raises an issue when a build changes behind a stable name or a retirement date comes within ${b.retirement_warning_days || 90} days.</p>
+    <h3>2 · The screen</h3>
+    <p>A candidate scores a <strong>fixed, stratified sample of 200 statements twice</strong> with the production prompt. The sample is never redrawn, so every round since 2026 is comparable. The cost is a few dollars to a few tens of dollars per model; the corpus is only scored by a model that is adopted.</p>
+    <h3>3 · Gates</h3>
+    <p>Absolute, and any failure ends the reading: test–retest MAD ≤ ${b.max_retest_mad}; sentence-level exact repeat ≥ ${pct(b.min_exact_repeat)}; failure rate ≤ ${pct(b.max_failure_rate)}; null rate between ${pct(b.null_rate_range[0])} and ${pct(b.null_rate_range[1])}; a 30-sentence null-discipline probe (sentences every incumbent judged to carry no signal) nulled at ≥ ${pct(b.min_null_probe)}; latency p90 ≤ ${b.max_latency_p90} s.</p>
+    <h3>4 · Agreement with the incumbents</h3>
+    <p>Against the mean of the current members: Pearson r ≥ ${b.min_pearson_r}, Spearman ≥ ${b.min_spearman}, |bias| ≤ ${b.max_abs_bias}, sentence-level r ≥ ${b.min_sentence_r}, sentence coverage ≥ ${b.min_coverage}, null agreement ≥ ${b.min_null_agreement}, and r ≥ ${b.min_group_r} in the weakest of five eras. A short bar is a HOLD, not a rejection: a genuinely better but differently calibrated model fails here by design, and the record says so.</p>
+    <h3>5 · Does the ensemble improve?</h3>
+    <p>With the candidate added, the ensemble's own test–retest noise must not rise, its leave-one-out agreement must not fall, and its separation of announced hikes from cuts must stay within 0.02 of the incumbents' median. A candidate whose residual (its reading minus the ensemble's) correlates above ${b.max_redundancy} with one incumbent's residual repeats that incumbent and can only replace it.</p>
+    <h3>6 · Verdicts and the decision</h3>
+    <p>REJECT (a gate), HOLD (a bar), ADOPT-ADD, or ADOPT-REPLACE a named incumbent. Nothing flips automatically: the maintainer reads the record and decides. Adoption cuts a new ensemble version: the model is back-filled over the whole corpus, the version is bumped, and the previous version's scores are kept beside the new ones so the two series can be compared above.</p>
+    <h3>7 · Leaving</h3>
+    <p>Incumbents are re-read on every round. RETIRE when test–retest MAD exceeds ${b.retire_retest_mad} or exact repeat falls below ${pct(b.retire_exact_repeat)}; WATCH when agreement with the others drops below ${b.watch_r_vs_others} or the failure rate exceeds ${pct(b.max_failure_rate)}; REPLACE when the provider announces retirement within ${b.retirement_warning_days} days or the id starts resolving to a different build. A replacement goes through the same screen as any candidate.</p>`;
+}
 async function initModels() {
   const M = await load("models.json");
+  renderModelSets(M); renderModelComparison(M); renderRounds(M); renderFramework(M);
   mount("chart-agreement", M.agreement); mount("chart-bias", M.bias_drift);
   const rs = Object.entries(M.agreement_r).map(([k, v]) => `${k.replace("_", "↔")} ${v === null ? "—" : v.toFixed(3)}`).join(" · ");
   $("#agree-sub").textContent = `${M.n_agree.toLocaleString()} statements scored by all incumbents · r ${rs}`;
@@ -738,7 +818,7 @@ async function initModels() {
     { key: "usd_in", label: "$/M in", num: true }, { key: "usd_out", label: "$/M out", num: true },
   ], M.registry);
   const b = M.bakeoff, wrap = $("#bakeoff");
-  if (!b) { wrap.replaceChildren(el("p", { class: "empty", text: "No bake-off has been run on this machine." })); return; }
+  if (!b) { wrap.closest("figure").hidden = true; return; }   // the side-car is local run output; the rounds table above is the record
   $("#bakeoff-sub").textContent = `fixed sample of ${b.sample} statements · run ${b.generated} · test–retest is the one absolute measure`;
   const sec = (title, cols, rows) => { const d = el("div", { style: "margin-top:10px" }); d.append(el("div", { class: "eyebrow", text: title, style: "margin:0 0 6px" })); const w = el("div", { class: "tablewrap" }); sortableTable(w, cols, rows); d.append(w); return d; };
   wrap.replaceChildren(
@@ -757,7 +837,7 @@ async function initModels() {
 
 // ── Methodology and glossary ─────────────────────────────────────────────────
 const GLOSSARY = [
-  ["g-tone", "Tone", "The published score of a statement: every sentence scored by three language models on an integer scale from −10 (maximally hawkish) to +10 (maximally dovish); sentences with no policy signal are null and excluded; the statement score is the mean over its distinct sentences of the mean across the models that scored each one. The scale is absolute: holding at zero reads dovish, holding at a restrictive level reads hawkish."],
+  ["g-tone", "Tone", "The published score of a statement: every sentence scored by the ensemble's language models on an integer scale from −10 (maximally hawkish) to +10 (maximally dovish); sentences with no policy signal are null and excluded; the statement score is the mean over its distinct sentences of the mean across the models that scored each one. The scale is absolute: holding at zero reads dovish, holding at a restrictive level reads hawkish."],
   ["g-level", "Level", "The tone in force on a given day: the latest statement's score, carried forward until the next meeting. Monthly charts use the month-end value; '3m avg' is its 3-month rolling mean."],
   ["g-momentum", "Momentum", "Meeting-to-meeting changes in tone, divided by the bank's own two-year volatility of changes, averaged over five overlapping windows of 6, 9, 12, 15 and 18 months in t-statistic form (mean × √n), each capped at ±2, then averaged. Negative is tightening drift, positive easing drift. Half-life on the published data is about four months."],
   ["g-board", "Signal board", "One row per bank, sorted by momentum. Momentum: the composite, −2 (tightening) to +2 (easing), drawn as a bar from zero. Δ mom 3m: change in momentum over three months. Mom pct: percentile of the current momentum in the bank's own 5-year history. Mom 24m: momentum sparkline. Regime: level (hawkish below −0.5, dovish above +0.5) × direction (momentum beyond ±0.25). Tone: the latest statement. Δ mtg: change vs the previous statement. Δ 3m / 12m: change in the level vs 3 and 12 months ago. Tone pct: percentile of the current tone in the bank's own 5-year history. Tone 24m: sparkline of the 3-month-averaged level. Last: days since the statement. Next: days to the next scheduled meeting, ~ when estimated."],
@@ -775,7 +855,8 @@ const GLOSSARY = [
   ["g-bias", "Bias drift", "For each model, the trailing 12-month mean of its document score minus the published ensemble, by meeting month. A step in one line is a change in that model's build behind a stable id."],
   ["g-bakeoff", "Bake-off", "The standing evaluation on a fixed, stratified sample of 200 statements, two replicates per model. Test–retest MAD is a model against itself at temperature 0 (ceiling 0.25). Agreement is judged against the mean of the other models with a bias ceiling of 0.25, which is the incumbents' own spread. Null rate is the share of sentences a model judges to carry no policy signal."],
   ["g-null", "Null", "A sentence the model judged to carry no monetary-policy signal: procedure, mandate restatements, vote records, bare data recitation. Nulls are excluded from every average; the share of them is a selection criterion for a model."],
-  ["g-ensemble", "Ensemble", "The published model set, currently Claude Sonnet 4.6, Gemini 2.5 Flash and DeepSeek Flash, called at temperature 0 with one shared prompt. A statement is published once at least two of them have scored it."],
+  ["g-ensemble", "Ensemble", "The published model set: ensemble 2.0 (since 2026-10-24) is Claude Opus 5.5, Gemini 2.5 Flash, DeepSeek Flash and GPT-6.1 Sol, called with one shared prompt at temperature 0 where the model allows it. A statement is published once at least two of them have scored it. Ensemble 1.0 (2026-03 to 2026-10) was Claude Sonnet 4.6, Gemini 2.5 Flash and DeepSeek Flash; its scores are kept and compared on the Models tab."],
+  ["g-framework", "Model selection", "The standing procedure for adding or retiring a model: discovery of new ids monthly; a screen on a fixed 200-statement sample scored twice; absolute gates (stability, failure rate, null discipline, latency); agreement bars against the incumbent mean; an ensemble-improvement test and a redundancy test; a verdict the maintainer acts on. Written out in full on the Models tab."],
 ];
 function renderGlossary() {
   $("#glossary").replaceChildren(...GLOSSARY.map(([id, term, def]) => el("dl", { id }, [el("dt", { text: term }), el("dd", { text: def })])));
@@ -785,7 +866,7 @@ async function initMethodology() {
   renderGlossary();
   $("#method-prose").innerHTML = `
     <h3>What is measured</h3>
-    <p>Every official monetary-policy statement from ${META.n_cbs} central banks is split into sentences and each sentence is scored by three language models on an integer scale from <strong>−10 (maximally hawkish)</strong> to <strong>+10 (maximally dovish)</strong>; sentences with no policy signal are null. The published score is the sentence-level ensemble, so a model that skips more sentences gains no weight. ${META.n_statements.toLocaleString()} statements, ${META.coverage.reduce((a, r) => Math.min(a, r.from_yr), 9999)} to ${META.last_statement.slice(0, 4)}.</p>
+    <p>Every official monetary-policy statement from ${META.n_cbs} central banks is split into sentences and each sentence is scored by the ensemble's language models (four since October 2026; see the Models tab) on an integer scale from <strong>−10 (maximally hawkish)</strong> to <strong>+10 (maximally dovish)</strong>; sentences with no policy signal are null. The published score is the sentence-level ensemble, so a model that skips more sentences gains no weight. ${META.n_statements.toLocaleString()} statements, ${META.coverage.reduce((a, r) => Math.min(a, r.from_yr), 9999)} to ${META.last_statement.slice(0, 4)}.</p>
     <div class="scale"><span>−10 strongly hawkish</span><span>0 neutral</span><span>+10 strongly dovish</span></div>
     <p>The scale is <strong>absolute, not directional</strong>: it scores the level of the language, not the change since the last meeting. Holding at the zero lower bound reads dovish; holding at a restrictive level reads hawkish. Change is what momentum, the Δ columns and the z-score measure.</p>
     <h3>Coverage and starts</h3>

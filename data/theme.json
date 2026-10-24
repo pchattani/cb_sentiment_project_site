@@ -184,8 +184,8 @@
   }
  },
  "models": {
-  "claude": {
-   "label": "Claude",
+  "opus55": {
+   "label": "Opus 5.5",
    "light": "#008300",
    "dark": "#008300"
   },
@@ -198,6 +198,11 @@
    "label": "DeepSeek",
    "light": "#e34948",
    "dark": "#e66767"
+  },
+  "gpt61sol": {
+   "label": "GPT-6.1",
+   "light": "#e87ba4",
+   "dark": "#d55181"
   }
  },
  "dark_map": {

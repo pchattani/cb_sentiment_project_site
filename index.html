@@ -309,6 +309,31 @@
 <!-- ── Models ──────────────────────────────────────────────────────────── -->
 <section id="tab-models" class="panel" role="tabpanel" hidden>
   <div class="grid">
+    <figure class="card" data-chart="sets">
+      <figcaption><h3>What scores the statements <span class="ctx">the current set and the original set</span></h3>
+        <div class="card-tools"><a class="glossary-link" href="#methodology/g-ensemble">ⓘ</a></div></figcaption>
+      <div id="sets"></div>
+    </figure>
+    <figure class="card" data-chart="compare">
+      <figcaption><h3>Ensemble 2.0 against 1.0 <span class="ctx" id="compare-sub"></span></h3></figcaption>
+      <div class="tablewrap" id="compare-table"></div>
+    </figure>
+    <figure class="card half" data-chart="overlap">
+      <figcaption><h3>The two series <span class="ctx">monthly mean tone, both versions, 3m avg</span></h3>
+        <div class="card-tools"><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
+      <div class="plot" id="chart-overlap"></div><div class="tablewrap" hidden></div>
+    </figure>
+    <figure class="card half" data-chart="overlap-cb">
+      <figcaption><h3>Change by bank <span class="ctx">mean tone, 2.0 − 1.0</span></h3>
+        <div class="card-tools"><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
+      <div class="plot" id="chart-overlap-cb"></div><div class="tablewrap" hidden></div>
+    </figure>
+    <figure class="card" data-chart="rounds">
+      <figcaption><h3>Candidate rounds <span class="ctx" id="rounds-sub"></span></h3>
+        <div class="card-tools"><a class="glossary-link" href="#methodology/g-framework">ⓘ</a></div></figcaption>
+      <div class="tablewrap" id="rounds"></div>
+    </figure>
+    <figure class="card" data-chart="framework"><div class="prose" id="framework"></div></figure>
     <figure class="card" data-chart="agreement">
       <figcaption><h3>Live agreement <span class="ctx" id="agree-sub"></span></h3>
         <div class="card-tools"><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
