@@ -727,112 +727,105 @@ function renderXs() {
 }
 
 // ── Models ───────────────────────────────────────────────────────────────────
+const fmtDate = (iso) => iso ? new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "";
+function modelCard(label, id, role, why) {
+  return el("div", { class: "mcard" }, [el("div", { class: "eyebrow", text: role }), el("div", { class: "mname", text: label }),
+    el("div", { class: "mid", text: id }), el("p", { text: why })]);
+}
+const V2_WHY = {
+  opus55: "The Claude slot. Replaced Sonnet 4.6, which Anthropic retires in February 2027. The most stable reader measured here and the closest to the rest of the set.",
+  gemini: "Kept from version 1. Healthy on every check; its stored scores already match today's build.",
+  deepseek: "Kept from version 1 and re-scored under its current build, so the series is one build end to end.",
+  gpt61sol: "Added. Passed every gate and bar; reads the statements the same way as the others with the least noise, at 2.5 cents a statement.",
+};
+const V1_WHY = {
+  claude: "Retired from the set ahead of Anthropic's February 2027 retirement. Its scores remain in version 1.",
+  gemini: "Kept into version 2 unchanged.",
+  deepseek: "Kept into version 2 and re-scored under its current build; version 1 had called it through the deepseek-chat alias.",
+};
 function renderModelSets(M) {
   const hist = M.history || [], cur = hist[hist.length - 1], orig = hist[0];
   if (!cur) return;
   const pm = (M.comparison && M.comparison.per_model) || {};
-  const cols = [
-    { key: "label", label: "Model" }, { key: "model_id", label: "API id", mono: true },
-    { key: "role", label: "Role" },
-    { key: "retest", label: "Retest MAD", num: true, nd: 3, title: "Same statement scored twice: mean absolute difference (bar ≤ 0.25)" },
-    { key: "r_ens", label: "r vs others", num: true, nd: 3, title: "Correlation with the mean of the other members on the fixed sample" },
-    { key: "null_rate", label: "Null rate", num: true, nd: 2, title: "Share of sentences judged to carry no signal" },
-    { key: "cost", label: "$/stmt", num: true, nd: 3 }, { key: "latency", label: "s/stmt", num: true, nd: 0 },
-  ];
-  const rows = (h, roleOf) => Object.entries(h.members).map(([k, id]) => ({ label: h.labels[k], model_id: id, role: roleOf(k), ...(pm[k] || {}) }));
   const rep = cur.replaces || {};
-  const changed = (k) => rep[k] ? `replaces ${cur.labels[rep[k]] || rep[k]}` : !(orig.members[k]) ? "added" : (orig.members[k] === cur.members[k] ? "kept" : "re-pinned");
-  const curRows = rows(cur, k => changed(k));
-  const origRows = rows(orig, k => cur.members[k] ? "kept" : "retired");
-  const sec = (title, sub, r) => { const d = el("div", { style: "margin-top:10px" });
-    d.append(el("div", { class: "eyebrow", style: "margin:0 0 6px" }, [txt(title + " "), el("span", { class: "ctx", text: sub })]));
-    const w = el("div", { class: "tablewrap" }); sortableTable(w, cols, r); d.append(w); return d; };
-  $("#sets").replaceChildren(
-    sec(`Current set · ensemble ${cur.version}`, `since ${cur.from}`, curRows),
-    sec(`Original set · ensemble ${orig.version}`, `${orig.from} to ${orig.to}`, origRows),
-    el("p", { class: "note", text: cur.note }));
+  const role = (k) => rep[k] ? `replaces ${cur.labels[rep[k]] || rep[k]}` : orig.members[k] ? "kept" : "added";
+  const stat = (k) => pm[k] ? ` Stability ${pm[k].retest.toFixed(2)}, agreement with the set ${pm[k].r_ens.toFixed(2)}, $${pm[k].cost.toFixed(3)} a statement.` : "";
+  $("#now-sub").textContent = `ensemble ${cur.version} · since ${fmtDate(cur.from)} · ${Object.keys(cur.members).length} models, one shared prompt`;
+  $("#now-cards").replaceChildren(...Object.entries(cur.members).map(([k, id]) => modelCard(cur.labels[k], id, role(k), (V2_WHY[k] || "") + stat(k))));
+  $("#now-note").textContent = "Every sentence of every statement is scored by each of these models on the same −10 to +10 scale; the published number is the sentence-level mean across them. A statement is published once two of them have scored it.";
+  $("#before-sub").textContent = `ensemble ${orig.version} · ${fmtDate(orig.from)} to ${fmtDate(orig.to)}`;
+  $("#before-cards").replaceChildren(...Object.entries(orig.members).map(([k, id]) => modelCard(orig.labels[k], id, cur.members[k] ? "kept" : "retired", (V1_WHY[k] || "") + stat(k))));
+  $("#before-note").textContent = "Version 1 ran from the first scored statement to the cut. Its scores are kept and the two series are compared below; nothing about the prompt, the scale or the way the ensemble is formed changed between the versions.";
 }
 function renderModelComparison(M) {
-  const c = M.comparison, ov = M.overlap;
-  const wrap = $("#compare-table");
-  if (c && c.ensembles) {
-    sortableTable(wrap, [
-      { key: "version", label: "Ensemble" }, { key: "members", label: "Members" },
-      { key: "retest", label: "Retest MAD", num: true, nd: 3, title: "The ensemble mean, same statements scored twice" },
-      { key: "loo_r", label: "Leave-one-out r", num: true, nd: 3, title: "Each member vs the mean of the rest" },
-      { key: "dispersion", label: "Dispersion", num: true, nd: 3, title: "Mean spread of members per statement" },
-      { key: "auc", label: "Hike/cut AUC", num: true, nd: 3, title: "Separation of announced hikes from cuts" },
-      { key: "cost", label: "$/stmt", num: true, nd: 3 },
-    ], c.ensembles);
+  const c = M.comparison, ov = M.overlap, e = c && c.ensembles;
+  if (e && e.length >= 2) {
+    const [v1, v2] = e;
+    const rows = [
+      { what: "Re-scoring the same statement (mean absolute difference)", v1: v1.retest, v2: v2.retest, read: `${Math.round((1 - v2.retest / v1.retest) * 100)}% less self-disagreement` },
+      { what: "Each member against the rest (correlation)", v1: v1.loo_r, v2: v2.loo_r, read: "members agree more" },
+      { what: "Spread across members per statement", v1: v1.dispersion, v2: v2.dispersion, read: "tighter" },
+      { what: "Separating announced hikes from cuts (AUC)", v1: v1.auc, v2: v2.auc, read: "at the ceiling in both" },
+      { what: "Cost per statement", v1: v1.cost, v2: v2.cost, read: "about $65 a year at 600 statements" },
+    ];
+    sortableTable($("#compare-table"), [
+      { key: "what", label: "Measure" }, { key: "v1", label: "v1", num: true, nd: 3 }, { key: "v2", label: "v2", num: true, nd: 3 },
+      { key: "read", label: "Reading", render: v => el("span", { style: "white-space:normal", text: v }) },
+    ], rows);
   }
   const s = ov ? ov.summary : (c && c.series_shift);
-  $("#compare-sub").textContent = s ? `on the statements both versions scored (n ${s.n.toLocaleString()}): mean shift ${s.mean >= 0 ? "+" : ""}${s.mean.toFixed(2)}, typical ${s.mad.toFixed(2)} per statement, r ${s.r.toFixed(3)}` : "";
+  $("#compare-sub").textContent = s ? `measured on the fixed 200-statement sample (table) and on every statement both versions scored (n ${s.n.toLocaleString()}, charts)` : "";
+  const att = (c && c.attribution) || [];
+  const attText = att.length ? ` Of the ${s.mad.toFixed(2)} typical difference per statement, ${att.map(a => `${a.mad.toFixed(2)} is ${a.step.replace("stored old-build scores → current build", "re-score under its current build").replace("in for the stored Sonnet 4.6", "in for Sonnet 4.6")}`).join(", ")}: the re-score, not the new members, moves the series most.` : "";
+  $("#compare-same").replaceChildren(...[
+    "The same prompt (v1), the same −10 to +10 sentence scale, the same sentence-level ensemble, and the same rule that a statement is published once two models have scored it.",
+    "The same statements: both versions publish the same 4,326.",
+    s ? `The same reading: across every statement both versions scored, the two series correlate at ${s.r.toFixed(3)} with a mean shift of ${s.mean >= 0 ? "+" : ""}${s.mean.toFixed(2)}.${attText}` : "",
+    "No new kind of signal: every model that reads this prompt well reads it the same way; what changed is how much noise sits on top of that reading.",
+  ].filter(Boolean).map(t => el("li", { text: t })));
   if (ov) { mount("chart-overlap", ov.series); mount("chart-overlap-cb", ov.by_cb); }
   else { for (const id of ["overlap", "overlap-cb"]) { const f = document.querySelector(`figure[data-chart="${id}"]`); if (f) { f.hidden = true; const p = f.querySelector(".plot"); if (p) p.hidden = true; } } }
 }
-function renderRounds(M) {
-  const R = (M.rounds && M.rounds.rounds) || [];
-  const wrap = $("#rounds");
-  if (!R.length) { wrap.replaceChildren(el("p", { class: "empty", text: "No candidate round recorded." })); return; }
-  const rows = R.flatMap(r => r.candidates.map(c => ({ date: r.date, round: r.name, ...c })));
-  const tag = (v) => el("span", { class: "tag", text: v, style: v.startsWith("ADOPT") ? "color:var(--dove)" : v === "REJECT" ? "color:var(--hawk)" : "" });
-  sortableTable(wrap, [
-    { key: "date", label: "Date", mono: true }, { key: "round", label: "Round" }, { key: "label", label: "Model" }, { key: "model_id", label: "API id", mono: true },
-    { key: "verdict", label: "Verdict", render: v => tag(v) }, { key: "gate_failed", label: "Gate failed" },
-    { key: "r", label: "r vs ensemble", num: true, nd: 3 }, { key: "retest", label: "Retest", num: true, nd: 3 },
-    { key: "probe", label: "Null probe", num: true, nd: 2 }, { key: "cost", label: "$/stmt", num: true, nd: 3 },
-    { key: "decision", label: "Decision", render: v => el("span", { style: "white-space:normal", text: v }) },
-  ], rows);
-  $("#rounds-sub").textContent = R.map(r => `${r.date}: $${r.cost_usd.toFixed(0)}`).join(" · ") + " · each on the same 200 statements, two replicates";
+function renderWhy() {
+  $("#why-prose").innerHTML = `
+    <h3>Why new models are evaluated</h3>
+    <p><strong>Providers retire models.</strong> Claude Sonnet 4.6, the Claude slot in version 1, is retired by Anthropic in February 2027. A series that depends on a model nobody can call any more stops; a successor has to be measured against the set before that day, not after.</p>
+    <p><strong>Ids change underneath you.</strong> The <span class="mono">deepseek-chat</span> name was re-pointed to a newer model during 2026 without the name changing, and in October DeepSeek switched its models to think by default, which silently ignores the temperature setting the series relies on. A build change behind a stable name moves the published number with no line of code changed, so every incumbent is probed monthly for the build it resolves to.</p>
+    <p><strong>Newer models read more consistently.</strong> The ensemble is only as steady as its members. Version 2 re-scores the same statement with 13% less disagreement than version 1 because its two new members are the two most stable readers measured here.</p>
+    <p><strong>There is no ground truth for tone</strong>, so a change cannot be judged on accuracy alone. It is judged on stability, consistency with the existing set, and whether the ensemble as a whole gets better, always on the same fixed sample so every round since 2026 is comparable. Adoption is a decision the maintainer takes on the record, never an automatic flip, and every version's scores are kept so the series can be compared.</p>`;
 }
 function renderFramework(M) {
   const b = M.bars || {};
   const pct = (v) => `${Math.round(v * 100)}%`;
   $("#framework").innerHTML = `
     <h3>How a model gets in, and how one leaves</h3>
-    <p>The published number is an ensemble because no single model is stable enough to publish alone, and the set changes only by a fixed procedure. There is no ground truth for tone, so the procedure measures what can be measured: <strong>stability</strong> (a model against itself), <strong>consistency</strong> (a model against the incumbents), <strong>whether the ensemble gets better with it</strong>, and one anchor with a claim on accuracy, the decision each statement announces.</p>
-    <h3>1 · Discovery</h3>
-    <p>A monthly job lists every model each provider offers, keeps a watchlist of ids with first-seen dates, probes which build each incumbent id resolves to, and raises an issue when a build changes behind a stable name or a retirement date comes within ${b.retirement_warning_days || 90} days.</p>
-    <h3>2 · The screen</h3>
-    <p>A candidate scores a <strong>fixed, stratified sample of 200 statements twice</strong> with the production prompt. The sample is never redrawn, so every round since 2026 is comparable. The cost is a few dollars to a few tens of dollars per model; the corpus is only scored by a model that is adopted.</p>
-    <h3>3 · Gates</h3>
-    <p>Absolute, and any failure ends the reading: test–retest MAD ≤ ${b.max_retest_mad}; sentence-level exact repeat ≥ ${pct(b.min_exact_repeat)}; failure rate ≤ ${pct(b.max_failure_rate)}; null rate between ${pct(b.null_rate_range[0])} and ${pct(b.null_rate_range[1])}; a 30-sentence null-discipline probe (sentences every incumbent judged to carry no signal) nulled at ≥ ${pct(b.min_null_probe)}; latency p90 ≤ ${b.max_latency_p90} s.</p>
-    <h3>4 · Agreement with the incumbents</h3>
-    <p>Against the mean of the current members: Pearson r ≥ ${b.min_pearson_r}, Spearman ≥ ${b.min_spearman}, |bias| ≤ ${b.max_abs_bias}, sentence-level r ≥ ${b.min_sentence_r}, sentence coverage ≥ ${b.min_coverage}, null agreement ≥ ${b.min_null_agreement}, and r ≥ ${b.min_group_r} in the weakest of five eras. A short bar is a HOLD, not a rejection: a genuinely better but differently calibrated model fails here by design, and the record says so.</p>
-    <h3>5 · Does the ensemble improve?</h3>
-    <p>With the candidate added, the ensemble's own test–retest noise must not rise, its leave-one-out agreement must not fall, and its separation of announced hikes from cuts must stay within 0.02 of the incumbents' median. A candidate whose residual (its reading minus the ensemble's) correlates above ${b.max_redundancy} with one incumbent's residual repeats that incumbent and can only replace it.</p>
-    <h3>6 · Verdicts and the decision</h3>
-    <p>REJECT (a gate), HOLD (a bar), ADOPT-ADD, or ADOPT-REPLACE a named incumbent. Nothing flips automatically: the maintainer reads the record and decides. Adoption cuts a new ensemble version: the model is back-filled over the whole corpus, the version is bumped, and the previous version's scores are kept beside the new ones so the two series can be compared above.</p>
-    <h3>7 · Leaving</h3>
-    <p>Incumbents are re-read on every round. RETIRE when test–retest MAD exceeds ${b.retire_retest_mad} or exact repeat falls below ${pct(b.retire_exact_repeat)}; WATCH when agreement with the others drops below ${b.watch_r_vs_others} or the failure rate exceeds ${pct(b.max_failure_rate)}; REPLACE when the provider announces retirement within ${b.retirement_warning_days} days or the id starts resolving to a different build. A replacement goes through the same screen as any candidate.</p>`;
+    <p><strong>Screen first, corpus later.</strong> A candidate scores a fixed, stratified sample of 200 statements twice with the production prompt, for a few dollars to a few tens of dollars. Only an adopted model is scored over the whole corpus.</p>
+    <p><strong>Gates</strong> are absolute: it must agree with itself (re-scoring difference ≤ ${b.max_retest_mad}, ≥ ${pct(b.min_exact_repeat)} of sentence scores repeating), fail on ≤ ${pct(b.max_failure_rate)} of statements, mark between ${pct(b.null_rate_range[0])} and ${pct(b.null_rate_range[1])} of sentences as carrying no signal, pass a 30-sentence null-discipline probe at ≥ ${pct(b.min_null_probe)}, and answer within ${b.max_latency_p90} s.</p>
+    <p><strong>Then it is compared with the set:</strong> correlation ≥ ${b.min_pearson_r} with the incumbents' mean, bias within ±${b.max_abs_bias}, sentence-level agreement ≥ ${b.min_sentence_r}, and ≥ ${b.min_group_r} in the weakest of five eras. A short bar is a hold, not a rejection: a better but differently calibrated model fails here by design, and the record says so.</p>
+    <p><strong>Then whether the ensemble improves with it:</strong> its re-scoring noise must not rise, its internal agreement must not fall, and its separation of announced hikes from cuts must stay within 0.02 of the incumbents' median. A candidate that merely repeats one incumbent's idiosyncrasies (residual correlation ≥ ${b.max_redundancy}) can only replace it.</p>
+    <p><strong>Leaving</strong> works the same way in reverse: incumbents are re-read every round and marked for retirement when their stability falls below the gate, for watching when their agreement with the others drops below ${b.watch_r_vs_others}, and for replacement when the provider announces a retirement within ${b.retirement_warning_days} days or the id starts resolving to a different build. The replacement goes through the same screen.</p>`;
+}
+function renderRounds(M) {
+  const R = (M.rounds && M.rounds.rounds) || [];
+  const wrap = $("#rounds");
+  if (!R.length) { wrap.closest("figure").hidden = true; return; }
+  const rows = R.flatMap(r => r.candidates.map(c => ({ date: r.date, ...c })));
+  const tone = (o) => o.startsWith("Adopted") ? "color:var(--dove)" : o.startsWith("Kept") ? "" : "color:var(--muted)";
+  sortableTable(wrap, [
+    { key: "date", label: "Screened", mono: true }, { key: "label", label: "Model" }, { key: "model_id", label: "API id", mono: true },
+    { key: "outcome", label: "Outcome", render: v => el("span", { class: "tag", style: tone(v), text: v }) },
+    { key: "r", label: "Agreement with set", num: true, nd: 2, title: "Correlation with the mean of the other members on the fixed sample" },
+    { key: "retest", label: "Stability", num: true, nd: 2, title: "Re-scoring the same statement: mean absolute difference (lower is steadier)" },
+    { key: "cost", label: "$/stmt", num: true, nd: 3 },
+    { key: "outcome_why", label: "Why", render: v => el("span", { style: "white-space:normal", text: v }) },
+  ], rows);
+  const total = R.reduce((a, r) => a + r.cost_usd, 0);
+  $("#rounds-sub").textContent = `${R.length} rounds since ${fmtDate(R[0].date)} · each on the same 200 statements, scored twice · $${total.toFixed(0)} of screening in all`;
 }
 async function initModels() {
   const M = await load("models.json");
-  renderModelSets(M); renderModelComparison(M); renderRounds(M); renderFramework(M);
-  mount("chart-agreement", M.agreement); mount("chart-bias", M.bias_drift);
-  const rs = Object.entries(M.agreement_r).map(([k, v]) => `${k.replace("_", "↔")} ${v === null ? "—" : v.toFixed(3)}`).join(" · ");
-  $("#agree-sub").textContent = `${M.n_agree.toLocaleString()} statements scored by all incumbents · r ${rs}`;
-  sortableTable($("#registry-table"), [
-    { key: "label", label: "Model" }, { key: "model_id", label: "API id", mono: true },
-    { key: "in_ensemble", label: "Role", render: v => el("span", { class: "tag", text: v ? "ensemble" : "candidate" }) },
-    { key: "usd_in", label: "$/M in", num: true }, { key: "usd_out", label: "$/M out", num: true },
-  ], M.registry);
-  const b = M.bakeoff, wrap = $("#bakeoff");
-  if (!b) { wrap.closest("figure").hidden = true; return; }   // the side-car is local run output; the rounds table above is the record
-  $("#bakeoff-sub").textContent = `fixed sample of ${b.sample} statements · run ${b.generated} · test–retest is the one absolute measure`;
-  const sec = (title, cols, rows) => { const d = el("div", { style: "margin-top:10px" }); d.append(el("div", { class: "eyebrow", text: title, style: "margin:0 0 6px" })); const w = el("div", { class: "tablewrap" }); sortableTable(w, cols, rows); d.append(w); return d; };
-  wrap.replaceChildren(
-    sec("Per model", [{ key: "model", label: "Model" }, { key: "n_scored", label: "Scored", num: true, nd: 0 }, { key: "failure_rate", label: "Fail rate", num: true, nd: 3 },
-      { key: "mean_score", label: "Mean", num: true, signed: true }, { key: "null_rate", label: "Null rate", num: true, nd: 3 },
-      { key: "cost_per_statement", label: "$/stmt", num: true, nd: 4 }, { key: "latency_per_statement", label: "s/stmt", num: true, nd: 1 }], b.per_model),
-    sec("Test–retest", [{ key: "model", label: "Model" }, { key: "n", label: "n", num: true, nd: 0 }, { key: "mad", label: "MAD", num: true, nd: 3 },
-      { key: "max_abs", label: "Max", num: true, nd: 2 }, { key: "pearson_r", label: "r", num: true, nd: 3 }, { key: "identical_frac", label: "Identical", num: true, nd: 3 }], b.retest),
-    sec("Pairwise, document level", [{ key: "model_a", label: "A" }, { key: "model_b", label: "B" }, { key: "n", label: "n", num: true, nd: 0 },
-      { key: "pearson_r", label: "r", num: true, nd: 3 }, { key: "bias", label: "Bias A−B", num: true, nd: 3, signed: true }, { key: "mad", label: "MAD", num: true, nd: 3 }], b.pairwise),
-    sec("Sentence level", [{ key: "model_a", label: "A" }, { key: "model_b", label: "B" }, { key: "n", label: "n", num: true, nd: 0 },
-      { key: "pearson_r", label: "r", num: true, nd: 3 }, { key: "bias", label: "Bias", num: true, nd: 3, signed: true }, { key: "coverage", label: "Coverage", num: true, nd: 3 },
-      { key: "null_agreement", label: "Null agr.", num: true, nd: 3 }], b.sentence),
-  );
+  renderModelSets(M); renderModelComparison(M); renderWhy(); renderFramework(M); renderRounds(M);
+  mount("chart-bias", M.bias_drift);
 }
 
 // ── Methodology and glossary ─────────────────────────────────────────────────

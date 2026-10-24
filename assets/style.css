@@ -195,6 +195,17 @@ table.data tr.clickable { cursor: pointer; }
 .chip-btn[aria-pressed="true"] i { opacity: 1; }
 .chip-btn.action { color: var(--accent); border-color: transparent; }
 
+/* ── Models tab ─────────────────────────────────────────────────────────── */
+.mcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; margin-top: 8px; }
+.mcard { border: 1px solid var(--border); padding: 10px 12px 8px; background: var(--page); }
+.mcard .mname { font-size: 15px; font-weight: 600; margin: 3px 0 1px; }
+.mcard .mid { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.mcard p { font-size: 12px; color: var(--ink2); margin: 8px 0 0; line-height: 1.45; }
+.cmp { display: grid; grid-template-columns: 3fr 2fr; gap: 18px; margin-top: 8px; }
+@media (max-width: 900px) { .cmp { grid-template-columns: 1fr; } }
+.cmp ul { margin: 6px 0 0 16px; padding: 0; font-size: 12.5px; color: var(--ink2); line-height: 1.5; }
+.cmp ul li { margin-bottom: 4px; }
+
 /* ── Small multiples ─────────────────────────────────────────────────────── */
 .multiples { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); }
 .mini { background: var(--surface); border: 0; padding: 7px 9px 5px; cursor: pointer; text-align: left; display: grid; grid-template-columns: 1fr auto; gap: 0 6px; align-items: center; }

@@ -309,14 +309,21 @@
 <!-- ── Models ──────────────────────────────────────────────────────────── -->
 <section id="tab-models" class="panel" role="tabpanel" hidden>
   <div class="grid">
-    <figure class="card" data-chart="sets">
-      <figcaption><h3>What scores the statements <span class="ctx">the current set and the original set</span></h3>
+    <figure class="card" data-chart="now">
+      <figcaption><h3>What powers the dashboard <span class="ctx" id="now-sub"></span></h3>
         <div class="card-tools"><a class="glossary-link" href="#methodology/g-ensemble">ⓘ</a></div></figcaption>
-      <div id="sets"></div>
+      <div class="mcards" id="now-cards"></div>
+      <p class="note" id="now-note"></p>
+    </figure>
+    <figure class="card" data-chart="before">
+      <figcaption><h3>What ran before <span class="ctx" id="before-sub"></span></h3></figcaption>
+      <div class="mcards" id="before-cards"></div>
+      <p class="note" id="before-note"></p>
     </figure>
     <figure class="card" data-chart="compare">
-      <figcaption><h3>Ensemble 2.0 against 1.0 <span class="ctx" id="compare-sub"></span></h3></figcaption>
-      <div class="tablewrap" id="compare-table"></div>
+      <figcaption><h3>Version 2 against version 1 <span class="ctx" id="compare-sub"></span></h3></figcaption>
+      <div class="cmp"><div><div class="eyebrow" style="margin-bottom:6px">What improved</div><div class="tablewrap" id="compare-table"></div></div>
+        <div><div class="eyebrow" style="margin-bottom:6px">What is the same</div><ul id="compare-same"></ul></div></div>
     </figure>
     <figure class="card half" data-chart="overlap">
       <figcaption><h3>The two series <span class="ctx">monthly mean tone, both versions, 3m avg</span></h3>
@@ -324,34 +331,21 @@
       <div class="plot" id="chart-overlap"></div><div class="tablewrap" hidden></div>
     </figure>
     <figure class="card half" data-chart="overlap-cb">
-      <figcaption><h3>Change by bank <span class="ctx">mean tone, 2.0 − 1.0</span></h3>
+      <figcaption><h3>Change by bank <span class="ctx">mean tone, v2 − v1</span></h3>
         <div class="card-tools"><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
       <div class="plot" id="chart-overlap-cb"></div><div class="tablewrap" hidden></div>
     </figure>
-    <figure class="card" data-chart="rounds">
-      <figcaption><h3>Candidate rounds <span class="ctx" id="rounds-sub"></span></h3>
+    <figure class="card half" data-chart="why"><div class="prose" id="why-prose"></div></figure>
+    <figure class="card half" data-chart="framework"><div class="prose" id="framework"></div></figure>
+    <figure class="card" data-chart="evaluated">
+      <figcaption><h3>Models evaluated <span class="ctx" id="rounds-sub"></span></h3>
         <div class="card-tools"><a class="glossary-link" href="#methodology/g-framework">ⓘ</a></div></figcaption>
       <div class="tablewrap" id="rounds"></div>
     </figure>
-    <figure class="card" data-chart="framework"><div class="prose" id="framework"></div></figure>
-    <figure class="card" data-chart="agreement">
-      <figcaption><h3>Live agreement <span class="ctx" id="agree-sub"></span></h3>
-        <div class="card-tools"><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
-      <div class="plot" id="chart-agreement"></div><div class="tablewrap" hidden></div>
-    </figure>
-    <figure class="card half" data-chart="bias">
-      <figcaption><h3>Bias drift <span class="ctx">model − ensemble, trailing 12m</span></h3>
+    <figure class="card" data-chart="bias">
+      <figcaption><h3>Monitoring: each model against the ensemble <span class="ctx">trailing 12-month bias · a step is a build change behind a stable id</span></h3>
         <div class="card-tools"><a class="glossary-link" href="#methodology/g-bias">ⓘ</a><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
       <div class="plot" id="chart-bias"></div><div class="tablewrap" hidden></div>
-    </figure>
-    <figure class="card half" data-chart="registry">
-      <figcaption><h3>Model registry</h3></figcaption>
-      <div class="tablewrap" id="registry-table"></div>
-    </figure>
-    <figure class="card" data-chart="bakeoff">
-      <figcaption><h3>Bake-off scorecard <span class="ctx" id="bakeoff-sub"></span></h3>
-        <div class="card-tools"><a class="glossary-link" href="#methodology/g-bakeoff">ⓘ</a></div></figcaption>
-      <div id="bakeoff"></div>
     </figure>
   </div>
 </section>
