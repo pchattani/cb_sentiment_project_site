@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>CB Sentiment Monitor</title>
-<meta name="description" content="Hawkish–dovish tone of 22 central banks' policy statements, scored sentence by sentence by an ensemble of language models: signal board, momentum, cross-section, events and model diagnostics.">
+<title>The Quant Governor · Central bank tone</title>
+<meta name="description" content="The Quant Governor: the hawkish–dovish tone of 22 central banks' policy statements, scored sentence by sentence by an ensemble of language models. Signal board, momentum, breadth, what changed, meetings ahead, and the models behind the number.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/style.css">
 <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
 </head>
@@ -15,20 +15,19 @@
 <a class="skip" href="#main">Skip to content</a>
 
 <header class="topbar">
-  <div class="brand">
-    <span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-    <div>
-      <h1>CB Sentiment Monitor</h1>
-      <p class="sub">Policy-statement tone, 22 central banks, sentence-level LLM ensemble · − hawkish / + dovish</p>
+  <div class="topbar-in">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"></span>
+      <div>
+        <h1>The Quant <b>Governor</b></h1>
+        <p class="sub">Central bank tone · 22 banks · sentence-level LLM ensemble · − hawkish / + dovish</p>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="asof" id="freshness"></div>
     </div>
   </div>
-  <div class="topbar-right">
-    <div class="asof" id="freshness"></div>
-    <button id="theme-toggle" class="btn-icon" aria-label="Toggle light and dark theme" title="Theme">◐</button>
-  </div>
 </header>
-
-<section class="kpis" id="kpis" aria-label="Global indicators"></section>
 
 <nav class="tabs" aria-label="Sections">
   <div class="tabs-inner" role="tablist">
@@ -43,10 +42,25 @@
   </div>
 </nav>
 
+<div class="ticker" aria-label="Meetings ahead"><div class="ticker-in" id="ticker"></div></div>
+
 <main id="main">
 
 <!-- ── Monitor ─────────────────────────────────────────────────────────── -->
 <section id="tab-monitor" class="panel" role="tabpanel">
+  <div class="sh lg">
+    <div class="sh-main">
+      <span class="kicker" id="hero-kicker">Central bank tone</span>
+      <h2 class="sh-title">Every policy statement, by the numbers.</h2>
+      <p class="sh-sub" id="hero-sub"></p>
+    </div>
+    <div class="sh-side">
+      <button class="sh-link" type="button" data-goto="groups"><b>Cross-section →</b><span>Who moves together</span></button>
+      <button class="sh-link" type="button" data-goto="events"><b>Events →</b><span>What changed, what's next</span></button>
+      <button class="sh-link" type="button" data-goto="cb"><b>Bank →</b><span>One bank, every statement</span></button>
+    </div>
+  </div>
+  <section class="kpis" id="kpis" aria-label="Global indicators"></section>
   <div class="filters">
     <span class="filter-label">Universe</span>
     <div class="seg" role="radiogroup" aria-label="Universe" data-filter="monitor.group"></div>
@@ -96,6 +110,9 @@
 
 <!-- ── Cross-section ───────────────────────────────────────────────────── -->
 <section id="tab-groups" class="panel" role="tabpanel" hidden>
+  <div class="sh">
+    <div class="sh-main"><span class="kicker">Cross-section</span><h2 class="sh-title">Who moves together</h2><p class="sh-sub">Equal-weight indices, breadth, every member in its own colour, and how the banks correlate.</p></div>
+  </div>
   <div class="filters">
     <span class="filter-label">Partition</span>
     <div class="seg" role="radiogroup" aria-label="Partition" data-filter="groups.partition"></div>
@@ -208,6 +225,9 @@
 
 <!-- ── Events ──────────────────────────────────────────────────────────── -->
 <section id="tab-events" class="panel" role="tabpanel" hidden>
+  <div class="sh">
+    <div class="sh-main"><span class="kicker">Events</span><h2 class="sh-title">What changed, and what's next</h2><p class="sh-sub">The latest statements with the sentence that moved each score, the series status, and the meetings ahead.</p></div>
+  </div>
   <div class="filters">
     <span class="filter-label">Universe</span>
     <div class="seg" role="radiogroup" aria-label="Universe" data-filter="events.group"></div>
@@ -234,6 +254,9 @@
 
 <!-- ── Statistics ──────────────────────────────────────────────────────── -->
 <section id="tab-xsection" class="panel" role="tabpanel" hidden>
+  <div class="sh">
+    <div class="sh-main"><span class="kicker">Statistics</span><h2 class="sh-title">The long run</h2><p class="sh-sub">Distributions, volatility, stress episodes, the common factor and who leads whom, over two decades of statements.</p></div>
+  </div>
   <div class="filters">
     <span class="filter-label">Signal</span>
     <div class="seg" role="radiogroup" aria-label="Signal" data-filter="xs.signal"></div>
@@ -308,6 +331,9 @@
 
 <!-- ── Models ──────────────────────────────────────────────────────────── -->
 <section id="tab-models" class="panel" role="tabpanel" hidden>
+  <div class="sh">
+    <div class="sh-main"><span class="kicker">Models</span><h2 class="sh-title">What scores the statements</h2><p class="sh-sub">The current model set, the one it replaced, the evaluation framework and every model screened.</p></div>
+  </div>
   <div class="grid">
     <figure class="card" data-chart="now">
       <figcaption><h3>What powers the dashboard <span class="ctx" id="now-sub"></span></h3>
@@ -352,6 +378,9 @@
 
 <!-- ── Methodology & glossary ──────────────────────────────────────────── -->
 <section id="tab-methodology" class="panel" role="tabpanel" hidden>
+  <div class="sh">
+    <div class="sh-main"><span class="kicker">Methodology</span><h2 class="sh-title">How the number is made</h2><p class="sh-sub">The scale, the prompt, the ensemble rule, and a glossary that defines every number on the site.</p></div>
+  </div>
   <div class="grid">
     <figure class="card"><div class="prose" id="method-prose"></div></figure>
     <figure class="card" data-chart="glossary">
@@ -380,6 +409,9 @@
 
 <!-- ── Explorer ────────────────────────────────────────────────────────── -->
 <section id="tab-explorer" class="panel" role="tabpanel" hidden>
+  <div class="sh">
+    <div class="sh-main"><span class="kicker">Explorer</span><h2 class="sh-title">Read the statements</h2><p class="sh-sub">Any two statements of one bank side by side, sentence by sentence, with every model's score.</p></div>
+  </div>
   <div class="filters">
     <span class="filter-label">Bank</span>
     <select class="ctl" id="exp-cb" aria-label="Central bank"></select>
@@ -399,7 +431,7 @@
 </main>
 
 <footer>
-  <p>Scores measure language, not outcomes, and carry no claim of accuracy beyond the anchors described in Methodology. Built from public central-bank statements. Not investment advice.</p>
+  <div class="page"><p><b>The Quant Governor.</b> Scores measure language, not outcomes, and carry no claim of accuracy beyond the anchors described in Methodology. Built from public central-bank statements. For information only; not investment advice.</p></div>
 </footer>
 
 <script type="module" src="assets/app.js"></script>

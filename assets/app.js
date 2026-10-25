@@ -64,22 +64,11 @@ let THEME, META;
 
 // ── Theme ────────────────────────────────────────────────────────────────────
 const THEME_KEY = "cbsm-theme";
-function mode() {
-  const t = document.documentElement.dataset.theme;
-  if (t === "light" || t === "dark") return t;
-  return matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
-}
+// One theme, dark, as on the Quant sports sites (the kit is dark only).
+function mode() { return "dark"; }
 function initTheme() {
-  let saved = null;
-  try { saved = localStorage.getItem(THEME_KEY); } catch (_) { /* private mode */ }
-  if (saved === "light" || saved === "dark") document.documentElement.dataset.theme = saved;
-  $("#theme-toggle").addEventListener("click", () => {
-    const next = mode() === "dark" ? "light" : "dark";
-    document.documentElement.dataset.theme = next;
-    try { localStorage.setItem(THEME_KEY, next); } catch (_) { /* ignore */ }
-    rethemeAll();
-  });
-  matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { if (!document.documentElement.dataset.theme) rethemeAll(); });
+  document.documentElement.dataset.theme = "dark";
+  try { localStorage.removeItem(THEME_KEY); } catch (_) { /* private mode */ }
 }
 const rgbIndex = { light: new Map(), dark: new Map() };
 function buildRgbIndex() {
@@ -296,6 +285,31 @@ function tile(label, d, { nd = 2, unit = "", signed: sg = true, note = "vs 3m ag
     el("span", { class: "delta", text: delta }),
     sparkSvg(d.spark || []),
   ]);
+}
+const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+function tickWhen(iso, days) {
+  const d = new Date(iso + "T00:00:00");
+  const day = days === 0 ? "Today" : days === 1 ? "Tomorrow" : `${WEEKDAY[d.getDay()]} ${d.getDate()} ${d.toLocaleString("en-GB", { month: "short" })}`;
+  return days > 1 ? `${day} · ${days}d` : day;
+}
+function renderTicker() {
+  const wrap = $("#ticker");
+  if (!wrap || !BOARD || !BOARD.rows) return;
+  const rows = BOARD.rows.filter(r => isNum(r.days_to_next) && r.days_to_next >= 0).sort((a, b) => a.days_to_next - b.days_to_next).slice(0, 14);
+  wrap.replaceChildren(el("div", { class: "tick-head", text: "Meetings ahead" }), ...rows.map(r =>
+    el("button", { class: `tick${r.next_confirmed ? "" : " est"}`, type: "button", title: `${r.name}: next meeting ${r.next}${r.next_confirmed ? "" : " (estimated)"}`,
+        onclick: () => { state.cb.key = r.key; showTab("cb"); } }, [
+      el("span", { class: "code", text: r.cb }),
+      el("span", { class: "when", text: tickWhen(r.next, r.days_to_next) }),
+      el("span", { class: "tone", text: `Tone ${fmt(r.tone, 2, true)} · ${r.regime || ""}`.trim() }),
+    ])));
+}
+function renderHero() {
+  const sub = $("#hero-sub");
+  if (!sub || !META) return;
+  sub.textContent = `The hawkish-to-dovish tone of ${META.n_cbs} central banks' policy statements, scored sentence by sentence by an ensemble of ${(META.models || []).length || "four"} language models, with momentum, breadth and what changed, updated daily. ${META.n_statements.toLocaleString()} statements since ${META.coverage.reduce((a, r) => Math.min(a, r.from_yr), 9999)}.`;
+  const k = $("#hero-kicker"); if (k) k.textContent = `Central bank tone · ${META.n_cbs} banks · last statement ${dateLabel(META.last_statement)}`;
+  for (const b of $$(".sh-link[data-goto]")) b.onclick = () => showTab(b.dataset.goto);
 }
 function renderKpis() {
   if (!KPIS) return;
@@ -681,7 +695,7 @@ function renderTimeline() {
   wrap.append(el("div", { class: "axis" }));
   for (let d = 0; d <= H; d += 7) {
     const dt = new Date(today); dt.setDate(dt.getDate() + d);
-    wrap.append(el("div", { class: "tick", style: `left:${(d / H * 100).toFixed(2)}%`, text: dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) }));
+    wrap.append(el("div", { class: "tick-mark", style: `left:${(d / H * 100).toFixed(2)}%`, text: dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) }));
   }
   wrap.append(el("div", { class: "today", style: "left:0%" }, el("span", { text: "today" })));
   const lastX = [-9, -9, -9, -9, -9, -9];
@@ -954,8 +968,9 @@ function initTabs() {
   initTheme(); initTabs(); initTableToggles(); initGlossaryLinks(); readHash();
   [THEME, META, KPIS] = await Promise.all([load("theme.json"), load("meta.json"), load("kpis.json")]);
   buildRgbIndex();
-  $("#freshness").innerHTML = `last statement <b>${dateLabel(META.last_statement)}</b><br>built ${META.generated}`;
-  renderKpis();
-  if (state.tab !== "monitor") { try { BOARD = await load("board.json"); } catch (_) { /* optional for the bank tiles */ } }
+  $("#freshness").innerHTML = `Last statement <b>${dateLabel(META.last_statement)}</b><br>Built ${META.generated}`;
+  renderKpis(); renderHero();
+  try { BOARD = BOARD || await load("board.json"); } catch (_) { /* optional for the bank tiles */ }
+  renderTicker();
   await showTab(state.tab);
 })();
