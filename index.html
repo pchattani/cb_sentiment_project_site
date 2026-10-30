@@ -7,7 +7,7 @@
 <meta name="description" content="The Quant Governor: the hawkish–dovish tone of 22 central banks' policy statements, scored sentence by sentence by an ensemble of language models. Signal board, momentum, breadth, what changed, meetings ahead, and the models behind the number.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600;700&family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/style.css">
 <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
 </head>
@@ -61,12 +61,16 @@
     </div>
   </div>
   <section class="kpis" id="kpis" aria-label="Global indicators"></section>
+
+  <div class="sh week-head">
+    <div class="sh-main"><span class="kicker">The last 30 days in central banks</span><h2 class="sh-title">The month in five lines</h2><p class="sh-sub" id="week-lede"></p></div>
+  </div>
+  <section class="week" id="week" aria-label="The last 30 days in five facts"></section>
+
   <div class="filters">
     <span class="filter-label">Universe</span>
     <div class="seg" role="radiogroup" aria-label="Universe" data-filter="monitor.group"></div>
-    <span class="filter-label">Phase month</span>
-    <input type="range" class="ctl" id="phase-month" min="0" max="0" value="0" aria-label="Month shown in the phase diagram">
-    <span class="num" id="phase-month-label"></span>
+    <span class="note" style="margin:0">applies to every panel below</span>
     <span class="spacer"></span>
     <span class="filter-label" id="monitor-count"></span>
   </div>
@@ -85,8 +89,8 @@
     </figure>
 
     <figure class="card fivetwelfths" data-chart="phase">
-      <figcaption><h3>Phase diagram <span class="ctx">tone × momentum, 6m trail</span></h3>
-        <div class="card-tools"><a class="glossary-link" href="#methodology/g-phase">ⓘ</a><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
+      <figcaption><h3>Phase diagram <span class="ctx">tone × momentum · hover or click a bank for its 6m trail</span></h3>
+        <div class="card-tools"><input type="range" class="ctl" id="phase-month" min="0" max="0" value="0" aria-label="Month shown in the phase diagram"><span class="num" id="phase-month-label"></span><a class="glossary-link" href="#methodology/g-phase">ⓘ</a><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
       <div class="plot" id="chart-phase"></div><div class="tablewrap" hidden></div>
     </figure>
 
@@ -116,27 +120,22 @@
   <div class="filters">
     <span class="filter-label">Partition</span>
     <div class="seg" role="radiogroup" aria-label="Partition" data-filter="groups.partition"></div>
-    <span class="filter-label">Signal</span>
-    <div class="seg" role="radiogroup" aria-label="Signal" data-filter="groups.signal"></div>
-    <span class="filter-label">Lookback</span>
-    <div class="seg" role="radiogroup" aria-label="Lookback" data-filter="groups.lookback"></div>
-    <span class="filter-label">Corr window</span>
-    <div class="seg" role="radiogroup" aria-label="Correlation window" data-filter="groups.corr"></div>
+    <span class="note" style="margin:0">applies to every panel below · signal and lookback are set on each chart</span>
   </div>
   <div class="grid">
     <figure class="card half" data-chart="index_groups">
       <figcaption><h3>DM vs EM <span class="ctx">equal-weight, 3m avg</span></h3>
-        <div class="card-tools"><a class="glossary-link" href="#methodology/g-index">ⓘ</a><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
+        <div class="card-tools"><div class="seg" role="radiogroup" aria-label="Signal" data-filter="groups.signal"></div><div class="seg" role="radiogroup" aria-label="Lookback" data-filter="groups.lookback"></div><a class="glossary-link" href="#methodology/g-index">ⓘ</a><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
       <div class="plot" id="chart-index-groups"></div><div class="tablewrap" hidden></div>
     </figure>
     <figure class="card half" data-chart="index_regions">
       <figcaption><h3>Regions <span class="ctx">equal-weight, 3m avg</span></h3>
-        <div class="card-tools"><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
+        <div class="card-tools"><div class="seg" role="radiogroup" aria-label="Lookback" data-filter="groups.lookback"></div><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
       <div class="plot" id="chart-index-regions"></div><div class="tablewrap" hidden></div>
     </figure>
     <figure class="card half" data-chart="breadth">
       <figcaption><h3 id="breadth-title">Tone breadth</h3>
-        <div class="card-tools"><a class="glossary-link" href="#methodology/g-breadth">ⓘ</a><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
+        <div class="card-tools"><div class="seg" role="radiogroup" aria-label="Signal" data-filter="groups.signal"></div><a class="glossary-link" href="#methodology/g-breadth">ⓘ</a><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
       <div class="plot" id="chart-breadth"></div><div class="tablewrap" hidden></div>
     </figure>
     <figure class="card half" data-chart="breadth_mom">
@@ -146,23 +145,23 @@
     </figure>
     <figure class="card twothirds" data-chart="overview">
       <figcaption><h3 id="overview-title">Members</h3>
-        <div class="card-tools"><span class="note" style="margin:0">pick the banks to show · hover or click a line to bring one forward</span><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
+        <div class="card-tools"><div class="seg" role="radiogroup" aria-label="Signal" data-filter="groups.signal"></div><div class="seg" role="radiogroup" aria-label="Lookback" data-filter="groups.lookback"></div><span class="note" style="margin:0">pick the banks to show · hover or click a line to bring one forward</span><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
       <div class="chips" id="member-chips" role="group" aria-label="Banks shown"></div>
       <div class="plot" id="chart-overview"></div><div class="tablewrap" hidden></div>
     </figure>
     <figure class="card third" data-chart="rolling_corr">
       <figcaption><h3>DM–EM co-movement <span class="ctx">36m rolling r</span></h3>
-        <div class="card-tools"><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
+        <div class="card-tools"><div class="seg" role="radiogroup" aria-label="Lookback" data-filter="groups.lookback"></div><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
       <div class="plot" id="chart-rolling-corr"></div><div class="tablewrap" hidden></div>
     </figure>
     <figure class="card" data-chart="heatmap">
-      <figcaption><h3>Bank × month <span class="ctx">red hawkish · blue dovish</span></h3>
-        <div class="card-tools"><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
+      <figcaption><h3>Bank × month <span class="ctx">hawkish at top · red hawkish · blue dovish</span></h3>
+        <div class="card-tools"><div class="seg" role="radiogroup" aria-label="Signal" data-filter="groups.signal"></div><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
       <div class="plot" id="chart-heatmap"></div><div class="tablewrap" hidden></div>
     </figure>
     <figure class="card" data-chart="corr">
       <figcaption><h3 id="corr-title">Pairwise correlation within the partition</h3>
-        <div class="card-tools"><a class="glossary-link" href="#methodology/g-corr">ⓘ</a><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
+        <div class="card-tools"><div class="seg" role="radiogroup" aria-label="Signal" data-filter="groups.signal"></div><div class="seg" role="radiogroup" aria-label="Correlation window" data-filter="groups.corr"></div><a class="glossary-link" href="#methodology/g-corr">ⓘ</a><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
       <div class="plot" id="chart-corr"></div><div class="tablewrap" hidden></div>
     </figure>
   </div>
@@ -173,32 +172,28 @@
   <div class="filters">
     <span class="filter-label">Bank</span>
     <select class="ctl" id="cb-select" aria-label="Central bank"></select>
-    <span class="filter-label">Lookback</span>
-    <div class="seg" role="radiogroup" aria-label="Lookback" data-filter="cb.lookback"></div>
-    <span class="filter-label">Distribution</span>
-    <div class="seg" role="radiogroup" aria-label="Distribution" data-filter="cb.dist"></div>
   </div>
   <div class="cb-head"><h2 id="cb-name"></h2><span class="meta" id="cb-meta"></span></div>
   <div class="tiles" id="cb-tiles"></div>
   <div class="grid">
     <figure class="card twothirds" data-chart="detail">
       <figcaption><h3>Meeting scores <span class="ctx">dots: statements · line: 3m avg of the level in force · bands: stress episodes</span></h3>
-        <div class="card-tools"><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
+        <div class="card-tools"><div class="seg" role="radiogroup" aria-label="Lookback" data-filter="cb.lookback"></div><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
       <div class="plot" id="chart-cb-detail"></div><div class="tablewrap" hidden></div>
     </figure>
     <figure class="card third" data-chart="dist">
       <figcaption><h3 id="cb-dist-title">Distribution</h3>
-        <div class="card-tools"><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
+        <div class="card-tools"><div class="seg" role="radiogroup" aria-label="Distribution" data-filter="cb.dist"></div><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
       <div class="plot" id="chart-cb-dist"></div><div class="tablewrap" hidden></div>
     </figure>
     <figure class="card half" data-chart="momentum">
       <figcaption><h3>Momentum <span class="ctx">composite · capped ±2</span></h3>
-        <div class="card-tools"><a class="glossary-link" href="#methodology/g-momentum">ⓘ</a><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
+        <div class="card-tools"><div class="seg" role="radiogroup" aria-label="Lookback" data-filter="cb.lookback"></div><a class="glossary-link" href="#methodology/g-momentum">ⓘ</a><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
       <div class="plot" id="chart-cb-momentum"></div><div class="tablewrap" hidden></div>
     </figure>
     <figure class="card half" data-chart="momentum_windows">
       <figcaption><h3>Momentum by horizon <span class="ctx">6 · 9 · 12 · 15 · 18 months behind the composite</span></h3>
-        <div class="card-tools"><a class="glossary-link" href="#methodology/g-mom-windows">ⓘ</a><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
+        <div class="card-tools"><div class="seg" role="radiogroup" aria-label="Lookback" data-filter="cb.lookback"></div><a class="glossary-link" href="#methodology/g-mom-windows">ⓘ</a><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
       <div class="plot" id="chart-cb-windows"></div><div class="tablewrap" hidden></div>
     </figure>
     <figure class="card twothirds" data-chart="diff">
@@ -257,27 +252,19 @@
   <div class="sh">
     <div class="sh-main"><span class="kicker">Statistics</span><h2 class="sh-title">The long run</h2><p class="sh-sub">Distributions, volatility, stress episodes, the common factor and who leads whom, over two decades of statements.</p></div>
   </div>
-  <div class="filters">
-    <span class="filter-label">Signal</span>
-    <div class="seg" role="radiogroup" aria-label="Signal" data-filter="xs.signal"></div>
-    <span class="filter-label">Period</span>
-    <div class="seg" role="radiogroup" aria-label="Period" data-filter="xs.period"></div>
-    <span class="filter-label">Factor group</span>
-    <div class="seg" role="radiogroup" aria-label="PCA group" data-filter="xs.pca"></div>
-  </div>
   <div class="grid">
     <figure class="card half" data-chart="summary">
-      <figcaption><h3>Summary statistics <span class="ctx">per bank over the period</span></h3></figcaption>
+      <figcaption><h3>Summary statistics <span class="ctx">per bank over the period</span></h3><div class="card-tools"><div class="seg" role="radiogroup" aria-label="Signal" data-filter="xs.signal"></div><div class="seg" role="radiogroup" aria-label="Period" data-filter="xs.period"></div></div></figcaption>
       <div class="tablewrap" id="xs-summary" style="max-height:520px"></div>
     </figure>
     <figure class="card half" data-chart="xs_boxes">
-      <figcaption><h3>Distribution per bank <span class="ctx">sorted by median · ◆ latest</span></h3>
-        <div class="card-tools"><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
+      <figcaption><h3>Distribution per bank <span class="ctx">hawkish at top · ◆ latest</span></h3>
+        <div class="card-tools"><div class="seg" role="radiogroup" aria-label="Signal" data-filter="xs.signal"></div><div class="seg" role="radiogroup" aria-label="Period" data-filter="xs.period"></div><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
       <div class="plot" id="chart-xs-boxes"></div><div class="tablewrap" hidden></div>
     </figure>
     <figure class="card half" data-chart="volatility">
       <figcaption><h3>Volatility <span class="ctx">sd of change between observations</span></h3>
-        <div class="card-tools"><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
+        <div class="card-tools"><div class="seg" role="radiogroup" aria-label="Signal" data-filter="xs.signal"></div><div class="seg" role="radiogroup" aria-label="Period" data-filter="xs.period"></div><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
       <div class="plot" id="chart-xs-vol"></div><div class="tablewrap" hidden></div>
     </figure>
     <figure class="card half" data-chart="factor">
@@ -287,22 +274,22 @@
     </figure>
     <figure class="card twothirds" data-chart="stress">
       <figcaption><h3>Stress episodes <span class="ctx">DM and EM indices from 2000</span></h3>
-        <div class="card-tools"><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
+        <div class="card-tools"><div class="seg" role="radiogroup" aria-label="Signal" data-filter="xs.signal"></div><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
       <div class="plot" id="chart-xs-stress"></div><div class="tablewrap" hidden></div>
     </figure>
     <figure class="card third" data-chart="stress_heat">
       <figcaption><h3>Episode averages <span class="ctx">mean level per bank</span></h3>
-        <div class="card-tools"><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
+        <div class="card-tools"><div class="seg" role="radiogroup" aria-label="Signal" data-filter="xs.signal"></div><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
       <div class="plot" id="chart-xs-stress-heat"></div><div class="tablewrap" hidden></div>
     </figure>
     <figure class="card third" data-chart="pca_loadings">
       <figcaption><h3>Factor loadings <span class="ctx" id="pca-sub"></span></h3>
-        <div class="card-tools"><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
+        <div class="card-tools"><div class="seg" role="radiogroup" aria-label="Factor group" data-filter="xs.pca"></div><div class="seg" role="radiogroup" aria-label="Signal" data-filter="xs.signal"></div><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
       <div class="plot" id="chart-pca-loadings"></div><div class="tablewrap" hidden></div>
     </figure>
     <figure class="card third" data-chart="pca_ts">
       <figcaption><h3>Factor vs index <span class="ctx">standardised</span></h3>
-        <div class="card-tools"><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
+        <div class="card-tools"><div class="seg" role="radiogroup" aria-label="Factor group" data-filter="xs.pca"></div><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
       <div class="plot" id="chart-pca-ts"></div><div class="tablewrap" hidden></div>
     </figure>
     <figure class="card third" data-chart="pca_scree">

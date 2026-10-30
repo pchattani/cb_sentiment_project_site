@@ -252,7 +252,12 @@ function seg(container, options, value, onChange) {
     return el("label", {}, [input, el("span", { text: label })]);
   }));
 }
-function segFilter(sel, options, get, set) { for (const c of $$(`[data-filter="${sel}"]`)) seg(c, options, get(), v => set(v)); }
+function segFilter(sel, options, get, set) {
+  // One selector may be drawn on several cards (each chart carries the control that drives it);
+  // every copy repaints after a change so they always agree.
+  const paint = () => { for (const c of $$(`[data-filter="${sel}"]`)) seg(c, options, get(), v => { set(v); paint(); }); };
+  paint();
+}
 function groupOptions() { return Object.keys(META.partitions).map(p => [p, PARTITION_LABELS[p] || p]); }
 function groupKeys(group) { return META.partitions[group] || META.partitions.all; }
 
@@ -310,6 +315,33 @@ function renderHero() {
   sub.textContent = `The hawkish-to-dovish tone of ${META.n_cbs} central banks' policy statements, scored sentence by sentence by an ensemble of ${(META.models || []).length || "four"} language models, with momentum, breadth and what changed, updated daily. ${META.n_statements.toLocaleString()} statements since ${META.coverage.reduce((a, r) => Math.min(a, r.from_yr), 9999)}.`;
   const k = $("#hero-kicker"); if (k) k.textContent = `Central bank tone · ${META.n_cbs} banks · last statement ${dateLabel(META.last_statement)}`;
   for (const b of $$(".sh-link[data-goto]")) b.onclick = () => showTab(b.dataset.goto);
+}
+let FEED_ALL = null;
+const MAJORS = ["FED", "ECB", "BOE", "BOJ", "BOC", "RBA", "SNB"];
+async function renderDigest() {
+  const wrap = $("#week"), lede = $("#week-lede");
+  if (!wrap || !BOARD || !BOARD.rows || !KPIS) return;
+  const rows = BOARD.rows, recent = rows.filter(r => isNum(r.days_since) && r.days_since <= 30 && isNum(r.chg_meeting));
+  const hawkMoves = recent.filter(r => r.chg_meeting < -0.25).length, doveMoves = recent.filter(r => r.chg_meeting > 0.25).length;
+  const mover = recent.length ? recent.reduce((a, b) => Math.abs(b.chg_meeting) > Math.abs(a.chg_meeting) ? b : a) : null;
+  const hawk = rows.filter(r => isNum(r.tone)).reduce((a, b) => b.tone < a.tone ? b : a);
+  const dove = rows.filter(r => isNum(r.tone)).reduce((a, b) => b.tone > a.tone ? b : a);
+  const tight = KPIS.mom_breadth_tightening, nTight = rows.filter(r => isNum(r.momentum) && r.momentum < -0.25).length;
+  const soon = rows.filter(r => isNum(r.days_to_next) && r.days_to_next >= 0).sort((a, b) => a.days_to_next - b.days_to_next);
+  const major = soon.find(r => MAJORS.includes(r.key) && r.days_to_next <= 10) || soon[0];
+  const gt = KPIS.global_tone;
+  lede.textContent = `${recent.length} statements in the last 30 days: ${hawkMoves} moved hawkish, ${doveMoves} dovish, the rest held within a quarter point. ` +
+    `Global tone ${fmt(gt.value, 2, true)} (${fmt(gt.delta, 2, true)} vs 3 months ago); ${nTight} of ${rows.length} banks are in a tightening drift.`;
+  const tile = (k, v, p, cls = "") => el("div", { class: "week-tile" }, [el("span", { class: "k", text: k }), el("span", { class: `v ${cls}`.trim(), text: v }), el("p", { text: p })]);
+  const open = (t, key) => { t.classList.add("link"); t.setAttribute("role", "button"); t.tabIndex = 0; t.onclick = () => { state.cb.key = key; showTab("cb"); }; return t; };
+  const tiles = [];
+  if (mover) tiles.push(open(tile("Biggest move", `${mover.cb} ${fmt(mover.chg_meeting, 2, true)}`,
+    `${mover.name}, ${dateLabel(mover.date)}: tone ${fmt(mover.tone, 2, true)} after a ${Math.abs(mover.chg_meeting).toFixed(2)}-point ${mover.chg_meeting < 0 ? "hawkish" : "dovish"} shift, the largest at any meeting in the last 30 days.`, mover.chg_meeting < 0 ? "hawk" : "dove"), mover.key));
+  tiles.push(open(tile("Most hawkish", `${hawk.cb} ${fmt(hawk.tone, 2, true)}`, `${hawk.name}, ${dateLabel(hawk.date)}. Percentile ${Math.round(hawk.pct)} of its own five-year range; momentum ${fmt(hawk.momentum, 2, true)}.`, "hawk"), hawk.key));
+  tiles.push(open(tile("Most dovish", `${dove.cb} ${fmt(dove.tone, 2, true)}`, `${dove.name}, ${dateLabel(dove.date)}. Percentile ${Math.round(dove.pct)} of its own range; momentum ${fmt(dove.momentum, 2, true)}.`, "dove"), dove.key));
+  tiles.push(tile("Tightening breadth", `${Math.round(tight.value)}%`, `${nTight} of ${rows.length} banks drifting tighter (momentum below −0.25); ${fmt(tight.delta, 0, true)} points vs 3 months ago.`));
+  if (major) tiles.push(open(tile("Next up", `${major.cb} · ${tickWhen(major.next, major.days_to_next)}`, `${major.name}: ${major.next_confirmed ? "confirmed" : "estimated"} date. Current tone ${fmt(major.tone, 2, true)}, momentum ${fmt(major.momentum, 2, true)}, ${(major.regime || "").toLowerCase()}.`), major.key));
+  wrap.replaceChildren(...tiles.slice(0, 5));
 }
 function renderKpis() {
   if (!KPIS) return;
@@ -409,14 +441,21 @@ function renderPhase() {
     for (let j = Math.max(0, i - 6); j <= i; j++) if (isNum(d.pos[j]) && isNum(d.tone[j])) { tx.push(d.pos[j]); ty.push(d.tone[j]); }
     g.trails.push([tx, ty]);
   }
-  const data = [];
+  // Trails are hidden until a bank is hovered or clicked: with 22 banks the
+  // paths crossed into noise and the dots were lost. trailOf[label] → trace index.
+  const data = [], trailOf = {};
   for (const [region, g] of Object.entries(byRegion)) {
     const col = regionColor(region);
-    for (const [tx, ty] of g.trails) if (tx.length > 1) data.push({ type: "scatter", mode: "lines", x: tx, y: ty, hoverinfo: "skip", showlegend: false, line: { color: col, width: 1 }, opacity: 0.35 });
+    g.trails.forEach(([tx, ty], k) => {
+      if (tx.length < 2) return;
+      trailOf[g.text[k]] = data.length;
+      data.push({ type: "scatter", mode: "lines+markers", x: tx, y: ty, hoverinfo: "skip", showlegend: false, visible: false,
+        line: { color: col, width: 2.5, shape: "spline", smoothing: 0.6 }, marker: { size: [3, 3, 3, 3, 3, 3, 0].slice(-tx.length), color: col }, opacity: 0.95 });
+    });
     data.push({ type: "scatter", mode: "markers+text", x: g.x, y: g.y, text: g.text, textposition: "top center", name: region, legendgroup: region,
       textfont: { size: 9.5, color: c.ink2, family: THEME.fonts.mono }, customdata: g.name,
-      marker: { size: 8, color: col, line: { width: 1.5, color: c.surface } },
-      hovertemplate: "<b>%{customdata}</b><br>momentum %{x:+.2f} · tone %{y:+.2f}<extra></extra>" });
+      marker: { size: 9, color: col, line: { width: 1.5, color: c.surface } },
+      hovertemplate: "<b>%{customdata}</b><br>momentum %{x:+.2f} · tone %{y:+.2f}<extra>6-month trail shown</extra>" });
   }
   const allTone = Object.values(byRegion).flatMap(g => g.y.concat(g.trails.flatMap(t => t[1]))).map(Math.abs);
   const R = Math.ceil(Math.max(3, ...allTone)) + 1, M = 2.2;
@@ -434,7 +473,21 @@ function renderPhase() {
       { x: -M + 0.1, y: R - 0.35, text: "dovish · fading", showarrow: false, font: { size: 9.5, color: c.muted, family: THEME.fonts.mono }, xanchor: "left" },
     ] };
   const node = $("#chart-phase"); node._fig = { data, layout }; node._opts = { foreign: true };
-  Plotly.react(node, data, layout, PLOT_CONFIG);
+  node._trailOf = trailOf;
+  Plotly.react(node, data, layout, PLOT_CONFIG).then(() => {
+    if (node._phaseWired) return; node._phaseWired = true;
+    let pinned = null;
+    const show = (label) => {
+      const map = node._trailOf || {}, idx = Object.values(map);
+      if (!idx.length) return;
+      const vis = idx.map(i => map[label] === i);
+      Plotly.restyle(node, { visible: vis }, idx);
+    };
+    const labelOf = (e) => { const p = e.points && e.points[0]; return p && p.data.text ? p.data.text[p.pointNumber] : null; };
+    node.on("plotly_hover", e => { if (pinned === null) { const l = labelOf(e); if (l) show(l); } });
+    node.on("plotly_unhover", () => { if (pinned === null) show(null); });
+    node.on("plotly_click", e => { const l = labelOf(e); if (!l) return; pinned = pinned === l ? null : l; show(pinned); });
+  });
 }
 function renderMultiples() {
   const keys = groupKeys(state.monitor.group);
@@ -473,10 +526,10 @@ function renderMonitorBoxes() {
   const keys = groupKeys(state.monitor.group), yrs = Number(state.monitor.lookback), isMom = state.monitor.dist === "mom";
   const n = PHASE.dates.length, from = yrs ? Math.max(0, n - yrs * 12) : 0;
   const m = mode(), c = THEME.chrome[m], acc = THEME.categorical["1"][m];
-  $("#dist-title").replaceChildren(txt("Distribution "), el("span", { class: "ctx", text: `monthly ${isMom ? "momentum" : "tone"} over the lookback · ◆ current` }));
+  $("#dist-title").replaceChildren(txt("Distribution "), el("span", { class: "ctx", text: `monthly ${isMom ? "momentum" : "tone"} over the lookback · hawkish at top · ◆ current` }));
   const rows = keys.map(k => { const d = PHASE.cbs[k]; const vals = (isMom ? d.pos : d.tone).slice(from).filter(isNum); const cur = vals[vals.length - 1];
     const sorted = [...vals].sort((a, b) => a - b); return { label: d.label, vals, cur, median: sorted[Math.floor(sorted.length / 2)] ?? 0 }; })
-    .filter(r => r.vals.length).sort((a, b) => a.median - b.median);
+    .filter(r => r.vals.length).sort((a, b) => a.cur - b.cur);   // hawkish first; the axis is reversed below so it sits at the top
   const data = rows.map(r => ({ type: "box", x: r.vals, name: r.label, orientation: "h", boxmean: false, showlegend: false,
     marker: { color: acc, size: 2.5, opacity: 0.5 }, line: { color: acc, width: 1 }, fillcolor: rgbaOf(acc, 0.12), hovertemplate: "%{x:+.2f}<extra>" + r.label + "</extra>" }));
   data.push({ type: "scatter", mode: "markers", x: rows.map(r => r.cur), y: rows.map(r => r.label), name: "Current",
@@ -484,7 +537,7 @@ function renderMonitorBoxes() {
   const base = THEME.layout[m];
   const layout = { ...structuredClone(base), height: Math.max(300, 19 * rows.length + 56), hovermode: "closest",
     xaxis: { ...base.xaxis, title: { text: isMom ? "monthly momentum  (− tightening · + easing)" : "monthly tone  (− hawkish · + dovish)" } },
-    yaxis: { ...base.yaxis, tickfont: { size: 10.5, family: THEME.fonts.mono, color: c.muted } }, margin: { l: 44, r: 12, t: 22, b: 32 } };
+    yaxis: { ...base.yaxis, autorange: "reversed", tickfont: { size: 10.5, family: THEME.fonts.mono, color: c.muted } }, margin: { l: 44, r: 12, t: 22, b: 32 } };
   const node = $("#chart-monitor-boxes"); node._fig = { data, layout }; node._opts = { foreign: true };
   Plotly.react(node, data, layout, PLOT_CONFIG);
 }
@@ -971,6 +1024,6 @@ function initTabs() {
   $("#freshness").innerHTML = `Last statement <b>${dateLabel(META.last_statement)}</b><br>Built ${META.generated}`;
   renderKpis(); renderHero();
   try { BOARD = BOARD || await load("board.json"); } catch (_) { /* optional for the bank tiles */ }
-  renderTicker();
+  renderTicker(); renderDigest();
   await showTab(state.tab);
 })();
