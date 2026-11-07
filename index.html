@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>The Quant Governor · Central bank tone</title>
-<meta name="description" content="The Quant Governor: the hawkish–dovish tone of 22 central banks' policy statements, scored sentence by sentence by an ensemble of language models. Signal board, momentum, breadth, what changed, meetings ahead, and the models behind the number.">
+<meta name="description" content="The Quant Governor: the hawkish–dovish tone of 22 central banks' policy statements, scored sentence by sentence by an ensemble of language models, beside the policy rate each bank set and the yields the market set in reply. Signal board, momentum, breadth, policy rates beside tone, what changed, meetings ahead, and the models behind the number.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600;700&family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -176,6 +176,7 @@
   </div>
   <div class="cb-head"><h2 id="cb-name"></h2><span class="meta" id="cb-meta"></span></div>
   <div class="tiles" id="cb-tiles"></div>
+  <div class="tiles market" id="cb-market-tiles"></div>
   <div class="grid">
     <figure class="card twothirds" data-chart="detail">
       <figcaption><h3>Meeting scores <span class="ctx">dots: statements · line: 3m avg of the level in force · bands: stress episodes</span></h3>
@@ -196,6 +197,19 @@
       <figcaption><h3>Momentum by horizon <span class="ctx">6 · 9 · 12 · 15 · 18 months behind the composite</span></h3>
         <div class="card-tools"><div class="seg" role="radiogroup" aria-label="Lookback" data-filter="cb.lookback"></div><a class="glossary-link" href="#methodology/g-mom-windows">ⓘ</a><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
       <div class="plot" id="chart-cb-windows"></div><div class="tablewrap" hidden></div>
+    </figure>
+    <figure class="card" data-chart="rates">
+      <figcaption><h3>Policy rate, tone and momentum <span class="ctx" id="cb-rates-sub">one time axis · shading: hiking spells red, cutting spells blue, through all three panels</span></h3>
+        <div class="card-tools"><div class="seg" role="radiogroup" aria-label="Lookback" data-filter="cb.lookback"></div><a class="glossary-link" href="#methodology/g-policy">ⓘ</a><button class="btn-icon table-toggle" aria-pressed="false" title="Table view" aria-label="Show as table">⊞</button></div></figcaption>
+      <div class="plot" id="chart-cb-rates"></div><div class="tablewrap" hidden></div>
+      <p class="note" id="cb-rates-note"></p>
+    </figure>
+    <figure class="card third" data-chart="reaction">
+      <figcaption><h3>What the market did next <span class="ctx" id="cb-react-sub"></span></h3>
+        <div class="card-tools"><a class="glossary-link" href="#methodology/g-reaction">ⓘ</a></div></figcaption>
+      <div class="plot" id="chart-cb-event"></div>
+      <div class="plot" id="chart-cb-reaction"></div>
+      <p class="note" id="cb-react-note"></p>
     </figure>
     <figure class="card twothirds" data-chart="diff">
       <figcaption><h3>What changed <span class="ctx" id="diff-sub"></span></h3>

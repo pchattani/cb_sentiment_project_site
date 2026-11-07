@@ -240,6 +240,9 @@ const wash = (v, vmax = 6) => !isNum(v) ? "" : `rgba(var(--${v < 0 ? "hawk" : "d
 const chip = (v, nd = 2, vmax = 6) => el("span", { class: "chip", text: fmt(v, nd), style: isNum(v) ? `background:${wash(v, vmax)}` : "" });
 const signed = (v, nd = 2) => el("span", { class: "num " + (!isNum(v) ? "" : v < 0 ? "hawk" : v > 0 ? "dove" : ""), text: fmt(v, nd) });
 const swatch = (color) => el("span", { class: "swatch", style: `background:${color}` });
+const fmtBp = (v, nd = 0) => !isNum(v) ? "—" : `${v > 0 ? "+" : ""}${v.toFixed(nd)} bp`;
+const bp = (v, nd = 0) => el("span", { class: "num bp " + (!isNum(v) ? "" : v > 0 ? "hawk" : v < 0 ? "dove" : ""), text: fmtBp(v, nd) });
+const pct = (v, nd = 2) => el("span", { class: "num", text: isNum(v) ? `${v.toFixed(nd)}%` : "—" });
 const regionColor = (r) => (THEME.regions[r] || {})[mode()] || "var(--axis)";
 const regimeTag = (label) => el("span", { class: "tag " + (label.startsWith("Hawkish") ? "hawk" : label.startsWith("Dovish") ? "dove" : "neutral"), text: label });
 
@@ -668,12 +671,53 @@ async function renderCb() {
     kv("Mean · all statements", fmt(t.mean), `sd ${fmt(t.sd, 2, false)}`),
     kv("Next meeting", t.next ? (t.next_confirmed ? "" : "~") + shortDate(t.next) : "—", t.next ? (t.next_confirmed ? "confirmed" : "estimated") : "no calendar"),
   );
+  renderCbMarketTiles(d);
   renderCbCharts(); renderTop(d); renderDiff(d);
   sortableTable($("#cb-scores"), [
     { key: "date", label: "Date", mono: true },
     ...META.models.map(mm => ({ key: mm.key, label: mm.label, num: true, render: v => chip(v) })),
     { key: "ensemble", label: "Ens", num: true, render: v => chip(v) },
+    ...(d.market ? [{ key: "move", label: "Move", num: true, title: "The rate move decided at the meeting, basis points", render: v => bp(v) }] : []),
   ], d.scores, { sortKey: "date", desc: true });
+}
+function renderCbMarketTiles(d) {
+  const wrap = $("#cb-market-tiles"), m = d.market;
+  if (!m) { wrap.replaceChildren(); return; }
+  const t = m.tiles, kv = (label, value, sub, cls = "") => el("div", { class: "tile" }, [el("span", { class: "label eyebrow", text: label }), el("span", { class: "value " + cls, text: value }), el("span", { class: "delta", text: sub || "" })]);
+  const dir = (v) => !isNum(v) ? "" : v > 0 ? "hawk" : v < 0 ? "dove" : "";
+  const tiles = [
+    kv(t.rate_label || "Policy rate", isNum(t.policy) ? `${t.policy.toFixed(2)}%` : "—", `${t.source === "derived" ? "derived from decisions" : "BIS daily"} · ${dateLabel(t.policy_date)}`, "amber"),
+    kv("Δ at the last meeting", fmtBp(t.chg_last), !isNum(t.chg_last) ? "" : t.chg_last > 0 ? "hiked" : t.chg_last < 0 ? "cut" : "held", dir(t.chg_last)),
+    kv("Δ rate · 12m", fmtBp(t.chg_12m), isNum(t.chg_3m) ? `${fmtBp(t.chg_3m)} over 3m` : "", dir(t.chg_12m)),
+    kv("Did × said", (t.cycle || "—").split(" · ")[0], (t.cycle || "").split(" · ")[1] || ""),
+  ];
+  const h = m.hit;
+  if (h && isNum(h.hit)) tiles.push(kv("Momentum called the move", `${Math.round(100 * h.hit)}%`, `${h.correct}/${h.n_moved} moves · ${Math.round(100 * h.no_move_share)}% no move in 6m`));
+  if (isNum(t.short)) tiles.push(kv(`${t.short_tenor} yield`, `${t.short.toFixed(2)}%`, isNum(t.short_chg_1m) ? `${fmtBp(t.short_chg_1m)} over 1m` : ""));
+  if (isNum(t.long)) tiles.push(kv("10y yield", `${t.long.toFixed(2)}%`, ""));
+  if (isNum(t.spread)) tiles.push(kv(`${t.short_tenor} − policy`, fmtBp(t.spread), t.spread > 25 ? "market prices hikes beyond the bank" : t.spread < -25 ? "market prices cuts beyond the bank" : "market at the policy rate", dir(t.spread)));
+  wrap.replaceChildren(...tiles);
+}
+function renderCbMarket(d, lb) {
+  const m = d.market, card = $('[data-chart="rates"]'), react = $('[data-chart="reaction"]');
+  if (!m) { card.hidden = true; react.hidden = true; return; }
+  card.hidden = false;
+  mount("chart-cb-rates", m.panels, lb);
+  const t = m.tiles;
+  $("#cb-rates-note").textContent = (t.source === "derived"
+    ? "The rate path is derived from the bank's own decisions as parsed from its statements (the BIS series does not carry Taiwan). "
+    : "Policy rate from the BIS daily series. ") + (t.lag ? `Statement dates trail the decision by about ${t.lag} days (the stored documents are the meeting summaries), so each dot sits after its move. ` : "")
+    + (isNum(t.short) ? "" : "Yields join this panel when the sovereign-yield feed is connected.");
+  if (m.event && m.reaction) {
+    react.hidden = false;
+    $("#cb-react-sub").textContent = `Δ ${m.stats.tenor} yield around each statement · ${m.stats.event.n_total} meetings`;
+    mount("chart-cb-event", m.event); mount("chart-cb-reaction", m.reaction);
+    const f = m.stats.fit;
+    $("#cb-react-note").textContent = isNum(f.slope) ? `A one-point hawkish shift in tone has gone with a ${Math.abs(f.slope).toFixed(1)} bp ${f.slope < 0 ? "rise" : "fall"} in the ${m.stats.tenor} yield by the next close (r ${f.r.toFixed(2)}, n ${f.n}).` : "Too few meetings with both a tone change and a yield to fit.";
+  } else {
+    react.hidden = !META.market || !META.market.has_yields ? true : false;
+    if (!react.hidden) { mount("chart-cb-event", null); mount("chart-cb-reaction", null); $("#cb-react-note").textContent = ""; }
+  }
 }
 function renderCbCharts() {
   const d = CBDATA, lb = { lookback: state.cb.lookback };
@@ -681,6 +725,7 @@ function renderCbCharts() {
   mount("chart-cb-momentum", d.momentum, lb);
   mount("chart-cb-windows", d.momentum_windows, lb);
   mount("chart-cb-models", d.model_cmp, lb);
+  renderCbMarket(d, lb);
   const tone = state.cb.dist === "tone";
   $("#cb-dist-title").replaceChildren(txt("Distribution "), el("span", { class: "ctx", text: (tone ? "meeting scores" : "momentum at meetings") + " · full history" }));
   mount("chart-cb-dist", tone ? d.dist : d.dist_mom);
@@ -916,6 +961,9 @@ const GLOSSARY = [
   ["g-bakeoff", "Bake-off", "The standing evaluation on a fixed, stratified sample of 200 statements, two replicates per model. Test–retest MAD is a model against itself at temperature 0 (ceiling 0.25). Agreement is judged against the mean of the other models with a bias ceiling of 0.25, which is the incumbents' own spread. Null rate is the share of sentences a model judges to carry no policy signal."],
   ["g-null", "Null", "A sentence the model judged to carry no monetary-policy signal: procedure, mandate restatements, vote records, bare data recitation. Nulls are excluded from every average; the share of them is a selection criterion for a model."],
   ["g-ensemble", "Ensemble", "The published model set: ensemble 2.0 (since 2026-10-24) is Claude Opus 5.5, Gemini 2.5 Flash, DeepSeek Flash and GPT-6.1 Sol, called with one shared prompt at temperature 0 where the model allows it. A statement is published once at least two of them have scored it. Ensemble 1.0 (2026-03 to 2026-10) was Claude Sonnet 4.6, Gemini 2.5 Flash and DeepSeek Flash; its scores are kept and compared on the Models tab."],
+  ["g-policy", "Policy rate", "The rate the bank set, from the BIS daily series of central bank policy rates (the Fed funds target mid-point, the ECB deposit facility rate, the Selic target, and so on), in force each day and carried forward between decisions. The BIS dates a change at its effective date and, for Korea and India, publishes with a lag of a few weeks. Taiwan is not in the series: its discount rate is a hand-maintained table of the CBC's own history extended from the decisions parsed out of its statements, and is marked 'derived' wherever it appears. Every parsed decision is checked against the series after each fetch; the agreement rate and the disagreements are reported in the run log."],
+  ["g-hit", "Hit rate", "For each bank, every month-end where the composite momentum was beyond ±0.25 is a directional call: tightening drift calls for a hike, easing drift for a cut. The call is scored against the first policy move within the next six months: a hit when the move went the same way, a miss when it went the other way, and 'no move' when the rate did not change in the window (counted separately, not as a miss). The hit rate is hits over hits plus misses; the Bank tab shows it with the number of moves behind it."],
+  ["g-reaction", "Market reaction", "Around each statement, the change in the short sovereign yield (2-year where listed, else the shortest tenor the feed carries) from the close before the decision to the close after it (t+1) and five days on (t+5), in basis points. The event study buckets meetings by the change in tone versus the previous statement: a hawkish surprise is a fall of more than 0.5 points, a dovish surprise a rise of more than 0.5. The reaction β is the slope of Δyield on Δtone across a bank's meetings: basis points per point of tone, with r and n. For Turkey the stored statement is the summary published about a week after the decision, so its windows are shifted back by that lag."],
   ["g-framework", "Model selection", "The standing procedure for adding or retiring a model: discovery of new ids monthly; a screen on a fixed 200-statement sample scored twice; absolute gates (stability, failure rate, null discipline, latency); agreement bars against the incumbent mean; an ensemble-improvement test and a redundancy test; a verdict the maintainer acts on. Written out in full on the Models tab."],
 ];
 function renderGlossary() {
@@ -933,6 +981,8 @@ async function initMethodology() {
     <p>Banks were chosen for market relevance, policy independence and an accessible statement archive. The Bank of Japan is excluded because its 2024 exit from yield-curve control breaks comparability on one scale; currency boards and exchange-rate targeters are excluded by construction. Where a bank's modern communication regime starts later than its archive (Brazil 2016, the Bank of England and the Riksbank 2017, India 2016) the series starts there. Charts default to 2005 onwards.</p>
     <h3>Why 21 levels</h3>
     <p>Tested on 307 sentences scored under −2/+2, −10/+10 and −100/+100: five levels lose resolution at neutral, where most central-bank language sits; 201 levels are false precision (models use fewer than 30 of them); the 21-level scale uses 95% of its levels with the highest cross-model agreement. The figures below are rebuilt from that test.</p>
+    <h3>Rates and the market</h3>
+    <p>Beside the words sit two market series. The <strong>policy rate</strong> is the BIS daily series of central bank policy rates (dataflow WS_CBPOL, end of period), fetched daily, in force each day and carried forward between decisions; Taiwan is not in it, so the CBC's discount rate is a hand-maintained table extended from the decisions parsed out of its statements and marked <em>derived</em>. After each fetch every parsed hike, cut and hold is checked against the series${META.market && META.market.has_rates ? "" : ""}; the agreement rate and every disagreement are written to the run log, and the known disagreements are dating artefacts (the Turkish corpus holds the meeting summaries, published about a week after the decision; some Chilean statements carry the minutes' date) rather than wrong rates. <strong>Sovereign yields</strong> (2-year where listed, else the shortest tenor, and the 10-year) come from EOD Historical Data's government-bond feed${META.market && META.market.has_yields ? "" : " and are not connected yet; the panels that need them are hidden rather than shown empty"}. The rate, tone and momentum panel on the Bank tab is defined in the glossary below.</p>
     <h3>What the score is not</h3>
     <p>There is no market anchor and no human-labelled set. Agreement figures on the Models tab measure consistency between models. The one accuracy check is the decision each statement announces, parsed from its text: every incumbent separates announced hikes from cuts with an area under the curve near 0.99, and a change in tone leads the next decision with a rank correlation of about +0.12. Every number on the site is defined in the glossary.</p>`;
   try {
